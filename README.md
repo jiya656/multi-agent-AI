@@ -17,3 +17,12 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Connected Express backend to MongoDB
 - Created the first data model: User (name, email, password, createdAt)
 - Added a temporary test endpoint (`POST /api/test/users`) to verify data saves correctly
+
+### Day 3
+- Built on the `feature/auth` branch
+- Installed bcryptjs and jsonwebtoken
+- Implemented `POST /api/auth/register` — hashes password with bcrypt before saving
+- Implemented `POST /api/auth/login` — verifies password, returns a signed JWT
+- Implemented JWT auth middleware (`protect`) — verifies `Authorization: Bearer <token>`
+- Implemented a protected test route: `GET /api/auth/profile`
+- Removed the Day 2 temporary `/api/test/users` route (replaced by real registration)
