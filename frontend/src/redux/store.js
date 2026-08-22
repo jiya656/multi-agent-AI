@@ -6,10 +6,11 @@
 
 import { configureStore } from "@reduxjs/toolkit";
 import authReducer from "./authSlice";
+import chatReducer from "./chatSlice"; // Day 5: add the chat slice to the store
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    // Day 5+: chat: chatReducer, documents: documentReducer, etc.
+    chat: chatReducer, // Day 5+: chat: chatReducer, documents: documentReducer, etc.
   },
 });
