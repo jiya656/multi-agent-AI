@@ -35,3 +35,13 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Built Register, Login, and Dashboard pages
 - Built `ProtectedRoute` — redirects unauthenticated users to `/login`
 - Wired up logout, form validation, and backend error display
+
+### Day 5
+- Built on the `feature/chat-system` branch
+- Created `Conversation` and `Message` models (one conversation → many messages)
+- Built chat REST API: `POST/GET /api/chats`, `GET /api/chats/:id`, `POST /api/chats/:id/messages`, `DELETE /api/chats/:id`
+- All chat routes protected by JWT (`authMiddleware`) and scoped by ownership (`user` field checked on every query)
+- Cascade delete: removing a conversation also removes its messages
+- Built `Chat.jsx` — sidebar + message view, `/chat` and `/chat/:id` routes
+- Built `chatSlice.js` — `fetchChats`, `createChat`, `fetchChat`, `sendMessage`, `deleteChat` thunks
+- No LLM yet — messages are stored as-is; AI responses come in Day 6
