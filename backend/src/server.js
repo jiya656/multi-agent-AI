@@ -3,6 +3,7 @@
 // Day 1: prove the backend runs and can talk to the frontend.
 // Day 2: connect to MongoDB and prove we can save real data.
 // Day 3: real authentication (register, login, JWT-protected routes).
+// Day 5: chat system (conversations + messages).
 
 const express = require("express");
 const cors = require("cors");
@@ -10,6 +11,7 @@ require("dotenv").config();
 
 const connectDB = require("./config/database");
 const authRoutes = require("./routes/authRoutes");
+const chatRoutes = require("./routes/chatRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -35,6 +37,11 @@ app.get("/api/test", (req, res) => {
 // router.get("/profile", ...) becomes GET /api/auth/profile.
 // This replaces the Day 2 temporary /api/test/users route entirely.
 app.use("/api/auth", authRoutes);
+
+// Day 5: every route in chatRoutes.js is protected by JWT and mounted
+// under /api/chats — so router.post("/", ...) becomes POST /api/chats,
+// router.post("/:id/messages", ...) becomes POST /api/chats/:id/messages, etc.
+app.use("/api/chats", chatRoutes);
 
 // Connect to MongoDB FIRST, and only start accepting requests once that
 // succeeds. If the database isn't reachable, we don't want a backend that
