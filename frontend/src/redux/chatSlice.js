@@ -40,9 +40,16 @@ export const sendMessage = createAsyncThunk(
   async ({ chatId, content }, { rejectWithValue }) => {
     try {
       const res = await api.post(`/chats/${chatId}/messages`, { content });
-      return res.data.data; // the saved message
+      return res.data; // { userMessage, assistantMessage }
     } catch (err) {
-      return rejectWithValue(err.response?.data?.error || "Failed to send message");
+      // Even when the AI call fails, the backend still managed to SAVE
+      // the user's message — and includes it in the error response. We
+      // pass that through too, so the UI can still show what the user
+      // actually sent, instead of it just vanishing.
+      return rejectWithValue({
+        error: err.response?.data?.error || "Failed to send message",
+        userMessage: err.response?.data?.userMessage || null,
+      });
     }
   }
 );
@@ -115,14 +122,29 @@ const chatSlice = createSlice({
         state.error = action.payload;
       })
 
-      // ---- sendMessage ----
+            // ---- sendMessage ----
+      .addCase(sendMessage.pending, (state) => {
+        // Drives an "AI is thinking…" indicator, separate from the
+        // general `loading` used when switching between chats.
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(sendMessage.fulfilled, (state, action) => {
-        // Append the confirmed-saved message to the current conversation's
-        // message list, so it shows up in the chat window immediately.
-        state.messages.push(action.payload);
+        state.loading = false;
+        state.messages.push(action.payload.userMessage);
+        if (action.payload.assistantMessage) {
+          state.messages.push(action.payload.assistantMessage);
+        }
       })
       .addCase(sendMessage.rejected, (state, action) => {
-        state.error = action.payload;
+        state.loading = false;
+        state.error = action.payload?.error || "Failed to send message";
+        // The user's message may have still been saved even though the
+        // AI call failed — show it rather than making it look like it
+        // never sent at all.
+        if (action.payload?.userMessage) {
+          state.messages.push(action.payload.userMessage);
+        }
       })
 
       // ---- deleteChat ----

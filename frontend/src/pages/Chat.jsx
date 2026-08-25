@@ -15,7 +15,7 @@ export default function Chat() {
   const navigate = useNavigate();
   const { id: chatIdFromUrl } = useParams();
 
-  const { chats, currentChat, messages, loading } = useSelector((state) => state.chat);
+  const { chats, currentChat, messages, loading, error } = useSelector((state) => state.chat);
   const [input, setInput] = useState("");
 
   // Load the sidebar list once, on mount.
@@ -109,7 +109,8 @@ export default function Chat() {
             </div>
           ))}
 
-          {loading && <p style={{ color: "#999" }}>Loading…</p>}
+          {loading && <p style={{ color: "#999" }}>AI is thinking…</p>}
+          {error && <p style={{ color: "crimson" }}>{error}</p>}
         </div>
 
         {currentChat && (
