@@ -45,3 +45,11 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Built `Chat.jsx` — sidebar + message view, `/chat` and `/chat/:id` routes
 - Built `chatSlice.js` — `fetchChats`, `createChat`, `fetchChat`, `sendMessage`, `deleteChat` thunks
 - No LLM yet — messages are stored as-is; AI responses come in Day 6
+
+### Day 6
+- Built on the `feature/llm-integration` branch
+- Added `services/aiService.js` — the only file that talks to the LLM provider (Groq by default, swappable via `.env`)
+- `addMessage` now: saves the user message → fetches full conversation history → calls the AI service → saves the assistant reply → returns both messages
+- Conversation memory verified: multi-turn context is correctly passed to the model
+- AI failures (bad key, rate limit, network error) return a clean `502` with a generic message — technical details stay in server logs only, and the user's message is preserved even if the AI call fails
+- Frontend: `sendMessage` now handles the `{userMessage, assistantMessage}` response shape, shows an "AI is thinking…" indicator, and still displays the user's message even on AI failure
