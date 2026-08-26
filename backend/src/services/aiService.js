@@ -1,79 +1,77 @@
 // aiService.js
 //
-// The ONLY file in the whole backend that knows how to talk to our LLM
-// provider. chatController.js calls getAIResponse() and never needs to
-// know or care whether that's Groq, OpenAI, a local Ollama model, or
-// anything else. Swapping providers later means changing THIS file only.
+// Day 6: this file called the Groq HTTP API directly with a raw fetch().
+// Day 7: this file now goes through LangChain instead — but its public
+// interface, getAIResponse(conversationHistory), is EXACTLY THE SAME as
+// before. That's the whole point: chatController.js does not change AT
+// ALL for this integration. It never knew HOW we talked to the LLM, only
+// that this function exists and returns a string.
 
-const LLM_API_KEY = process.env.LLM_API_KEY;
-   const LLM_MODEL = process.env.LLM_MODEL || "openai/gpt-oss-120b";
-// Groq exposes an OpenAI-compatible endpoint, which is why this looks
-// like an OpenAI request shape even though the provider is Groq.
-const LLM_BASE_URL = process.env.LLM_BASE_URL || "https://api.groq.com/openai/v1/chat/completions";
+const { getChatModel } = require("../ai/models/chatModel");
+const { chatPrompt } = require("../ai/prompts/chatPrompt");
+const { HumanMessage, AIMessage } = require("@langchain/core/messages");
 
-const SYSTEM_PROMPT =
-  "You are a helpful AI assistant inside a multi-agent AI workspace. Be clear and concise.";
-
-// Takes the full message history for a conversation (from MongoDB) and
-// returns the AI's reply as a plain string. Throws a typed Error on any
-// failure — the controller decides how to translate that into an HTTP
-// response; this function's only job is talking to the LLM.
+// Takes the full message history for a conversation (from MongoDB,
+// INCLUDING the just-saved newest user message) and returns the AI's
+// reply as a plain string. Throws a typed Error on any failure, same
+// convention as Day 6.
 async function getAIResponse(conversationHistory) {
-  if (!LLM_API_KEY) {
+  if (!process.env.LLM_API_KEY) {
     const err = new Error("LLM_API_KEY is not configured");
     err.type = "CONFIG_ERROR";
     throw err;
   }
 
-  // Convert our MongoDB message documents into the {role, content} shape
-  // every major LLM API expects, with a system prompt prepended.
-  const messages = [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...conversationHistory.map((m) => ({ role: m.role, content: m.content })),
-  ];
+  // The prompt template has two slots: {history} (everything BEFORE the
+  // newest message) and {question} (the newest message itself). So we
+  // split the incoming array: the last item is the question, everything
+  // before it becomes typed LangChain message objects for {history}.
+  const last = conversationHistory[conversationHistory.length - 1];
+  const priorMessages = conversationHistory.slice(0, -1).map((m) =>
+    m.role === "assistant" ? new AIMessage(m.content) : new HumanMessage(m.content)
+  );
 
-  let response;
   try {
-    response = await fetch(LLM_BASE_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LLM_API_KEY}`,
-      },
-      body: JSON.stringify({ model: LLM_MODEL, messages, max_tokens: 800 }),
+    const model = getChatModel();
+
+    // .pipe() is LangChain's way of composing a chain: "run the prompt
+    // template first, feed its output into the model next." This IS a
+    // chain, in the LangChain sense — just a very small, two-step one.
+    const chain = chatPrompt.pipe(model);
+
+    const result = await chain.invoke({
+      history: priorMessages,
+      question: last.content,
     });
-  } catch (networkErr) {
-    // fetch itself throwing means we couldn't even reach the provider —
-    // DNS failure, no internet, provider fully down, etc.
-    const err = new Error("Network error reaching the LLM provider");
-    err.type = "NETWORK_ERROR";
-    err.cause = networkErr;
-    throw err;
-  }
 
-  if (!response.ok) {
-    const bodyText = await response.text().catch(() => "");
-    const err = new Error(`LLM provider responded with ${response.status}: ${bodyText}`);
-    err.type =
-      response.status === 401
-        ? "AUTH_ERROR" // bad/expired API key
-        : response.status === 429
-        ? "RATE_LIMIT" // too many requests
+    if (!result?.content) {
+      const err = new Error("LLM provider returned an empty response");
+      err.type = "EMPTY_RESPONSE";
+      throw err;
+    }
+
+    return result.content;
+  } catch (err) {
+    if (err.type) throw err; // already one of our typed errors — pass through as-is
+
+    // LangChain/Groq SDK errors carry a status code buried in different
+    // places depending on the failure — normalize it into the same typed
+    // error shape Day 6 established, so the controller's handling doesn't
+    // need to know anything changed underneath.
+    const status = err.status || err.response?.status;
+    const wrapped = new Error(err.message || "LLM provider request failed");
+    wrapped.type =
+      status === 401
+        ? "AUTH_ERROR"
+        : status === 429
+        ? "RATE_LIMIT"
+        : status === 404
+        ? "PROVIDER_ERROR"
         : "PROVIDER_ERROR";
-    err.status = response.status;
-    throw err;
+    wrapped.status = status;
+    wrapped.cause = err;
+    throw wrapped;
   }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
-
-  if (!content) {
-    const err = new Error("LLM provider returned an empty response");
-    err.type = "EMPTY_RESPONSE";
-    throw err;
-  }
-
-  return content;
 }
 
 module.exports = { getAIResponse };
