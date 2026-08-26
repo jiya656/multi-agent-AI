@@ -53,3 +53,11 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Conversation memory verified: multi-turn context is correctly passed to the model
 - AI failures (bad key, rate limit, network error) return a clean `502` with a generic message — technical details stay in server logs only, and the user's message is preserved even if the AI call fails
 - Frontend: `sendMessage` now handles the `{userMessage, assistantMessage}` response shape, shows an "AI is thinking…" indicator, and still displays the user's message even on AI failure
+
+### Day 7
+- Built on the `feature/langchain-integration` branch
+- Installed `@langchain/core` and `@langchain/groq`
+- Added `ai/models/chatModel.js` — configures and returns the LangChain chat model, isolated from the rest of the app
+- Added `ai/prompts/chatPrompt.js` — reusable `ChatPromptTemplate` with `{history}` and `{question}` slots
+- Rewrote `aiService.js` internals to use a LangChain chain (`prompt.pipe(model)`) instead of a raw fetch call — but kept its external interface identical, so `chatController.js` needed zero changes
+- Still a single LLM call — no agents, no tools, no RAG yet
