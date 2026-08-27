@@ -61,3 +61,11 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Added `ai/prompts/chatPrompt.js` — reusable `ChatPromptTemplate` with `{history}` and `{question}` slots
 - Rewrote `aiService.js` internals to use a LangChain chain (`prompt.pipe(model)`) instead of a raw fetch call — but kept its external interface identical, so `chatController.js` needed zero changes
 - Still a single LLM call — no agents, no tools, no RAG yet
+
+### Day 8
+- Built on the `feature/ai-tools` branch
+- Installed `zod` (for tool input schema validation)
+- Added `ai/tools/calculatorTool.js` — first AI tool: name, description, zod schema, and a safe (no `eval()`) implementation
+- Rewrote `aiService.js`'s core logic into a full tool-calling loop: bind tools to the model → invoke → if the model requests a tool, execute it for real and feed the result back → invoke again for the final answer
+- `chatController.js` still required zero changes
+- Not building multiple agents yet — this is the foundation Day 9+ will build on
