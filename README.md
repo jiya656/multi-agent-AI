@@ -69,3 +69,10 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Rewrote `aiService.js`'s core logic into a full tool-calling loop: bind tools to the model → invoke → if the model requests a tool, execute it for real and feed the result back → invoke again for the final answer
 - `chatController.js` still required zero changes
 - Not building multiple agents yet — this is the foundation Day 9+ will build on
+
+### Day 9
+- Built on the `feature/first-ai-agent` branch
+- Added `ai/agents/agent.js` — owns the chat model + tools + the full "should I use a tool?" decision loop
+- Extracted the tool-calling loop out of `aiService.js` into `agent.js`; `aiService.js` shrank to a thin coordinator
+- `chatController.js` still required zero changes
+- Clear responsibility split: `chatController.js` = HTTP logic, `aiService.js` = AI coordination, `agent.js` = agent decision-making, `calculatorTool.js` = tool capability, `chatModel.js` = LLM config
