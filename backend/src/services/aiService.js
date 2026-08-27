@@ -1,15 +1,24 @@
 // aiService.js
 //
 // Day 6: this file called the Groq HTTP API directly with a raw fetch().
-// Day 7: this file now goes through LangChain instead — but its public
-// interface, getAIResponse(conversationHistory), is EXACTLY THE SAME as
-// before. That's the whole point: chatController.js does not change AT
-// ALL for this integration. It never knew HOW we talked to the LLM, only
-// that this function exists and returns a string.
+// Day 7: went through LangChain instead — but its public interface,
+// getAIResponse(conversationHistory), stayed EXACTLY THE SAME. That's
+// the whole point: chatController.js does not change AT ALL for this
+// integration. It never knew HOW we talked to the LLM, only that this
+// function exists and returns a string.
+// Day 8: now runs a full tool-calling loop — the model can request a
+// tool (like the calculator) instead of just generating text directly.
 
 const { getChatModel } = require("../ai/models/chatModel");
 const { chatPrompt } = require("../ai/prompts/chatPrompt");
-const { HumanMessage, AIMessage } = require("@langchain/core/messages");
+const { HumanMessage, AIMessage, ToolMessage } = require("@langchain/core/messages");
+const { calculatorTool } = require("../ai/tools/calculatorTool");
+
+// The set of tools our model can choose to call. Adding a new tool later
+// (searchTool, documentSearchTool, etc.) means adding it to this array —
+// nothing else in this file needs to change to support it.
+const TOOLS = [calculatorTool];
+const TOOLS_BY_NAME = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
 
 // Takes the full message history for a conversation (from MongoDB,
 // INCLUDING the just-saved newest user message) and returns the AI's
@@ -32,27 +41,63 @@ async function getAIResponse(conversationHistory) {
   );
 
   try {
-    const model = getChatModel();
+    // bindTools() attaches our tool definitions (name + description +
+    // schema) to the model. This does NOT make the model execute
+    // anything — it only gives the model the OPTION to respond with a
+    // request to call one of these tools, instead of (or in addition to)
+    // generating text directly.
+    const model = getChatModel().bindTools(TOOLS);
 
-    // .pipe() is LangChain's way of composing a chain: "run the prompt
-    // template first, feed its output into the model next." This IS a
-    // chain, in the LangChain sense — just a very small, two-step one.
-    const chain = chatPrompt.pipe(model);
-
-    const result = await chain.invoke({
+    // We use formatMessages() here instead of the simpler .pipe() chain
+    // from Day 7, because the tool-calling loop needs the raw message
+    // array to grow (adding the tool call + tool result) between two
+    // separate calls to the model — a single .pipe().invoke() can't
+    // express that back-and-forth.
+    const messages = await chatPrompt.formatMessages({
       history: priorMessages,
       question: last.content,
     });
 
-    if (!result?.content) {
+    let response = await model.invoke(messages);
+
+    // Did the model ask for a tool instead of (or before) answering directly?
+    if (response.tool_calls && response.tool_calls.length > 0) {
+      messages.push(response); // the model's own tool-call request joins the conversation
+
+      for (const call of response.tool_calls) {
+        const toolFn = TOOLS_BY_NAME[call.name];
+        let toolResult;
+        try {
+          toolResult = toolFn
+            ? await toolFn.invoke(call.args)
+            : `Error: unknown tool "${call.name}"`;
+        } catch (toolErr) {
+          // A tool failing shouldn't crash the whole request — feed the
+          // error back to the model as the tool's result, and let it
+          // explain the problem in its final answer instead.
+          toolResult = `Error running tool: ${toolErr.message}`;
+        }
+
+        // ToolMessage links a result back to the SPECIFIC tool call that
+        // requested it, via tool_call_id — required when a model makes
+        // multiple parallel tool calls in one turn.
+        messages.push(new ToolMessage({ content: String(toolResult), tool_call_id: call.id }));
+      }
+
+      // Second call: the model now sees its own tool request AND the
+      // real result, and generates the actual final answer using it.
+      response = await model.invoke(messages);
+    }
+
+    if (!response?.content) {
       const err = new Error("LLM provider returned an empty response");
       err.type = "EMPTY_RESPONSE";
       throw err;
     }
 
-    return result.content;
+    return response.content;
   } catch (err) {
-    if (err.type) throw err; // already one of our typed errors — pass through as-is
+    if (err.type) throw err; // already one of our typed errors (e.g. EMPTY_RESPONSE) — pass through as-is
 
     // LangChain/Groq SDK errors carry a status code buried in different
     // places depending on the failure — normalize it into the same typed
