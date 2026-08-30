@@ -1,21 +1,18 @@
 // aiService.js
 //
-// Day 6: raw fetch() call to Groq directly.
-// Day 7: went through LangChain (a simple prompt->model chain) instead.
-// Day 8: grew a tool-calling loop, all still inside this one file.
-// Day 9: that loop moved OUT into ai/agents/agent.js. This file's job
-// shrank down to: prepare the conversation as LangChain messages, hand
-// them to the agent, and translate whatever happens into either a plain
-// string or a typed error. It doesn't know HOW the agent decides to
-// respond — only that runAgent() will figure that out.
-//
-// getAIResponse()'s signature and behavior from the OUTSIDE are still
-// identical to Day 6 — chatController.js has needed zero changes since
-// the very first LLM integration.
+// Day 6: raw fetch() call to Groq.
+// Day 7: LangChain (prompt -> model chain).
+// Day 8: grew a tool-calling loop.
+// Day 9: that loop moved into ai/agents/agent.js.
+// Day 10: aiService now calls ai/graph/graph.js instead of the agent
+// directly. It doesn't know or care that there's a graph with state,
+// nodes, and edges underneath — only that runGraph() takes a message +
+// history and returns a response string. Same pattern as every previous
+// day: getAIResponse()'s outside behavior is unchanged, so
+// chatController.js STILL needs zero changes.
 
-const { chatPrompt } = require("../ai/prompts/chatPrompt");
 const { HumanMessage, AIMessage } = require("@langchain/core/messages");
-const { runAgent } = require("../ai/agents/agent");
+const { runGraph } = require("../ai/graph/graph");
 
 // Takes the full message history for a conversation (from MongoDB,
 // INCLUDING the just-saved newest user message) and returns the AI's
@@ -29,29 +26,22 @@ async function getAIResponse(conversationHistory) {
 
   // Split the incoming history: the last message is the current
   // question, everything before it becomes typed LangChain message
-  // objects for the {history} slot in our prompt template.
+  // objects that the graph's callModel node will use as {history}.
   const last = conversationHistory[conversationHistory.length - 1];
   const priorMessages = conversationHistory.slice(0, -1).map((m) =>
     m.role === "assistant" ? new AIMessage(m.content) : new HumanMessage(m.content)
   );
 
   try {
-    const messages = await chatPrompt.formatMessages({
-      history: priorMessages,
-      question: last.content,
-    });
+    const responseText = await runGraph(last.content, priorMessages);
 
-    // Everything about WHETHER a tool gets used, and HOW the tool-calling
-    // round trip works, is entirely the agent's responsibility now.
-    const response = await runAgent(messages);
-
-    if (!response?.content) {
+    if (!responseText) {
       const err = new Error("LLM provider returned an empty response");
       err.type = "EMPTY_RESPONSE";
       throw err;
     }
 
-    return response.content;
+    return responseText;
   } catch (err) {
     if (err.type) throw err; // already one of our typed errors — pass through as-is
 

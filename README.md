@@ -76,3 +76,11 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Extracted the tool-calling loop out of `aiService.js` into `agent.js`; `aiService.js` shrank to a thin coordinator
 - `chatController.js` still required zero changes
 - Clear responsibility split: `chatController.js` = HTTP logic, `aiService.js` = AI coordination, `agent.js` = agent decision-making, `calculatorTool.js` = tool capability, `chatModel.js` = LLM config
+
+### Day 10
+- Built on the `feature/langgraph-basics` branch
+- Installed `@langchain/langgraph`
+- Added `ai/graph/graph.js` — first LangGraph workflow: state (`message`, `historyMessages`, `response`), two nodes (`processMessage`, `callModel`), edges `START → processMessage → callModel → END`
+- `callModel` reuses the existing `runAgent()` (Day 9) internally, so tool-calling and conversation memory are preserved — the graph adds LangGraph's structure without losing existing capability
+- `aiService.js` now calls `runGraph()` instead of the agent directly; `chatController.js` still required zero changes
+- Verified: state genuinely flows between nodes (tested via a trimmed message reaching the second node correctly), tool-calling still works through the graph, conversation memory still works through the graph
