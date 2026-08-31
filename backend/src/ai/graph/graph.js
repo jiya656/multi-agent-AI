@@ -1,70 +1,75 @@
 // graph.js
 //
-// Our first LangGraph workflow. Deliberately small — Step 10's whole
-// point is learning State/Node/Edge with a workflow simple enough to
-// actually understand, not building the final multi-agent system today.
-//
-// ONE DELIBERATE DEVIATION FROM THE PLAN'S LITERAL EXAMPLE, worth being
-// honest about: the plan's callModel example makes a bare LLM call. Our
-// app already has tool-calling (Day 8) and conversation memory (Day 6)
-// working through agent.js (Day 9). Wiring this graph in a way that lost
-// either would be a real regression, not just "keeping it simple" — so
-// callModel calls our EXISTING runAgent() internally. The graph still
-// teaches the real State/Node/Edge concepts; it just doesn't throw away
-// working functionality to do it.
+// Day 10: a straight-line graph (processMessage -> callModel).
+// Day 11: our first BRANCHING graph. Same question can now take one of
+// two different paths depending on what it's about — that's the whole
+// point of conditional routing.
 
-const { StateGraph, Annotation, START, END } = require("@langchain/langgraph");
+const { StateGraph, START, END } = require("@langchain/langgraph");
+const { GraphState } = require("./state");
+const { router } = require("./router");
 const { chatPrompt } = require("../prompts/chatPrompt");
 const { runAgent } = require("../agents/agent");
 
-// STEP 13: our state — the "backpack" carried through the graph.
-// Annotation() with no arguments = a plain channel that gets replaced
-// on every update (the simplest kind — no custom merging logic needed
-// for these fields).
-const GraphState = Annotation.Root({
-  message: Annotation(), // the user's current question (string)
-  historyMessages: Annotation(), // prior turns, as LangChain message objects (array)
-  response: Annotation(), // filled in once callModel finishes
-});
+// STEP 11: classifyMessage — figures out what KIND of request this is.
+// Today: simple keyword-based rules (Step 9's "Option 1"), deliberately
+// basic so the GRAPH MECHANISM is the thing being learned, not
+// classification sophistication. Later this becomes an LLM/supervisor
+// decision instead of a hardcoded keyword list.
+const CODING_KEYWORDS = [
+  "code", "coding", "javascript", "react", "java", "python",
+  "function", "programming", "api", "algorithm", "bug", "syntax", "variable",
+];
 
-// STEP 14: processMessage — reads the raw input and does light
-// normalization. On purpose, this node does NOT talk to the AI at all —
-// that's a different node's job. This is what "a node is a unit of
-// work" means concretely: one clear, narrow responsibility per node.
-function processMessage(state) {
-  console.log("[graph] processMessage — received:", state.message);
-  return { message: state.message.trim() };
+function classifyMessage(state) {
+  const text = state.message.toLowerCase();
+  const category = CODING_KEYWORDS.some((k) => text.includes(k)) ? "coding" : "general";
+  console.log("[graph] classifyMessage —", JSON.stringify(state.message), "-> category:", category);
+  return { category };
 }
 
-// STEP 15: callModel — sends the message (WITH conversation history) to
-// our existing agent, so this node gets tool-calling and memory "for
-// free" from work we already built, rather than reimplementing it here.
-async function callModel(state) {
-  console.log("[graph] callModel — sending to agent:", state.message);
+// Shared helper: both nodes below answer the SAME way underneath (via
+// our existing agent, preserving tool-calling + memory like Day 10) —
+// they're deliberately identical in behavior today. What's different is
+// WHICH one runs, decided by the router. In later days, codingNode and
+// generalNode will genuinely diverge (different prompts, different
+// tools) — today's goal is proving the ROUTING mechanism works, first.
+async function answerViaAgent(state) {
   const messages = await chatPrompt.formatMessages({
     history: state.historyMessages || [],
     question: state.message,
   });
   const result = await runAgent(messages);
-  console.log("[graph] callModel — agent responded");
-  return { response: result.content };
+  return result.content;
 }
 
-// STEP 16: wire START -> processMessage -> callModel -> END.
-// This IS the whole graph structure: two nodes, three edges.
+async function codingNode(state) {
+  console.log("[graph] codingNode handling:", JSON.stringify(state.message));
+  const response = await answerViaAgent(state);
+  return { response };
+}
+
+async function generalNode(state) {
+  console.log("[graph] generalNode handling:", JSON.stringify(state.message));
+  const response = await answerViaAgent(state);
+  return { response };
+}
+
+// STEP 17-19: wire it together.
+// Normal edges (fixed): START -> classifyMessage, codingNode -> END, generalNode -> END
+// Conditional edge: classifyMessage -> (router decides) -> codingNode OR generalNode
 const graph = new StateGraph(GraphState)
-  .addNode("processMessage", processMessage)
-  .addNode("callModel", callModel)
-  .addEdge(START, "processMessage")
-  .addEdge("processMessage", "callModel")
-  .addEdge("callModel", END)
+  .addNode("classifyMessage", classifyMessage)
+  .addNode("codingNode", codingNode)
+  .addNode("generalNode", generalNode)
+  .addEdge(START, "classifyMessage")
+  .addConditionalEdges("classifyMessage", router, ["codingNode", "generalNode"])
+  .addEdge("codingNode", END)
+  .addEdge("generalNode", END)
   .compile();
 
-// Runs the graph for one turn and returns just the final response text —
-// this is the function aiService.js actually calls; it doesn't need to
-// know anything about state, nodes, or edges under the hood.
 async function runGraph(message, historyMessages = []) {
-  const finalState = await graph.invoke({ message, historyMessages, response: "" });
+  const finalState = await graph.invoke({ message, historyMessages, category: "", response: "" });
   return finalState.response;
 }
 
