@@ -84,3 +84,12 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - `callModel` reuses the existing `runAgent()` (Day 9) internally, so tool-calling and conversation memory are preserved — the graph adds LangGraph's structure without losing existing capability
 - `aiService.js` now calls `runGraph()` instead of the agent directly; `chatController.js` still required zero changes
 - Verified: state genuinely flows between nodes (tested via a trimmed message reaching the second node correctly), tool-calling still works through the graph, conversation memory still works through the graph
+
+### Day 11
+- Built on the `feature/langgraph-routing` branch
+- Added `category` to graph state
+- Added `ai/graph/router.js` — pure routing decision function
+- Rewrote `ai/graph/graph.js`: added `classifyMessage` (keyword-based, deliberately simple), `codingNode`, `generalNode`, and a conditional edge routing between them based on category
+- `aiService.js` still required zero changes
+- Verified: all 4 plan test cases route correctly (coding vs general), tool-calling and conversation memory still work regardless of which path is taken
+- Today's classifier is simple by design — a real LLM/supervisor-based classification comes in a later day
