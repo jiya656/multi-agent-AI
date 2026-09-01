@@ -93,3 +93,12 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - `aiService.js` still required zero changes
 - Verified: all 4 plan test cases route correctly (coding vs general), tool-calling and conversation memory still work regardless of which path is taken
 - Today's classifier is simple by design — a real LLM/supervisor-based classification comes in a later day
+
+### Day 12
+- Built on the `feature/langgraph-agent` branch
+- Added `ai/graph/nodes/agentNode.js` — calls the LLM (bound with tools), doesn't decide anything itself
+- Added `ai/graph/nodes/toolNode.js` — LangGraph's prebuilt `ToolNode`, executes real tool calls
+- Rewrote `graph.js`: the agent is now itself a LangGraph node, with a real loop (`agent → tools → agent`) via `toolsCondition` and a `tools → agent` edge, continuing until no more tool calls are pending
+- Replaces Day 11's classify/router graph at the top level — that router was explicitly a disposable teaching scaffold; today's agent+tool loop is the real reusable pattern Day 13's specialized agents will be built from
+- `aiService.js` still required zero changes
+- Verified with exact model-call counts: no-tool question = 1 call, single calculation = 2 calls (looped once), two sequential calculations = 3 calls (looped twice) — confirms the loop is real and dynamic, not hardcoded to one iteration
