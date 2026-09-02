@@ -1,59 +1,48 @@
 // graph.js
 //
-// Day 10: straight-line graph.
-// Day 11: branching graph (classify -> coding/general) — an explicitly
-// disposable teaching scaffold, described in that day's own notes as "a
-// simplified foundation for the future supervisor."
-// Day 12: the agent ITSELF becomes a graph. agentNode decides what to do;
-// if it requests a tool, execution loops through toolNode and back to
-// agentNode, repeating until the agent produces a final answer with no
-// further tool calls pending. This Tool -> Agent loop is the real
-// reusable pattern Day 13's Coding/Research/Document agents will each be
-// built from — today's graph replaces yesterday's toy example at the top
-// level for exactly that reason.
+// Day 12: the agent itself was a graph (agent <-> tools loop).
+// Day 13: the graph gets a SUPERVISOR — the same conditional-routing
+// mechanism from Day 11, now deciding between three real specialists
+// instead of a toy coding/general split.
+//
+// Simplified per the plan's own recommendation: each specialist routes
+// straight to END today, rather than looping back through the
+// supervisor. The return-to-supervisor loop (for multi-step requests
+// like "read my PDF, then research X") is a deliberate next step, not
+// built yet — this keeps today's graph testable in isolation first.
 
-const { StateGraph, MessagesAnnotation, START, END } = require("@langchain/langgraph");
-const { toolsCondition } = require("@langchain/langgraph/prebuilt");
-const { SystemMessage, HumanMessage } = require("@langchain/core/messages");
-const { agentNode } = require("./nodes/agentNode");
-const { toolNode } = require("./nodes/toolNode");
+const { StateGraph, START, END } = require("@langchain/langgraph");
+const { GraphState } = require("./state");
+const { router } = require("./router");
+const { supervisorNode } = require("./nodes/supervisorNode");
+const { codingNode } = require("./nodes/codingNode");
+const { researchNode } = require("./nodes/researchNode");
+const { documentNode } = require("./nodes/documentNode");
 
-const SYSTEM_PROMPT =
-  "You are a helpful AI assistant inside a multi-agent AI workspace. Be clear and concise.";
-
-// STEP 11: the loop, made concrete.
-//   START -> agent -> (toolsCondition checks the last message) -> "tools" or END
-//   tools -> agent   <-- THIS edge is what creates the loop
-// toolsCondition is LangGraph's prebuilt router: it inspects the most
-// recent message and returns "tools" if it has pending tool_calls,
-// otherwise END. We don't write this routing logic ourselves — it's the
-// same "does the last AI message contain a tool call?" check we'd have
-// hand-written, just provided as a maintained utility.
-const graph = new StateGraph(MessagesAnnotation)
-  .addNode("agent", agentNode)
-  .addNode("tools", toolNode)
-  .addEdge(START, "agent")
-  .addConditionalEdges("agent", toolsCondition, ["tools", END])
-  .addEdge("tools", "agent")
+// The pathMap (object form) translates the supervisor's plain category
+// string into the actual node name to run — this is what lets
+// supervisorAgent.js's zod-constrained "coding"/"research"/"document"/
+// "end" values map directly onto graph destinations.
+const graph = new StateGraph(GraphState)
+  .addNode("supervisorNode", supervisorNode)
+  .addNode("codingNode", codingNode)
+  .addNode("researchNode", researchNode)
+  .addNode("documentNode", documentNode)
+  .addEdge(START, "supervisorNode")
+  .addConditionalEdges("supervisorNode", router, {
+    coding: "codingNode",
+    research: "researchNode",
+    document: "documentNode",
+    end: END,
+  })
+  .addEdge("codingNode", END)
+  .addEdge("researchNode", END)
+  .addEdge("documentNode", END)
   .compile();
 
-// Same external interface as every previous day: message + prior history
-// in, final answer text out. aiService.js doesn't need to know a loop
-// exists underneath.
 async function runGraph(message, historyMessages = []) {
-  const initialMessages = [
-    new SystemMessage(SYSTEM_PROMPT),
-    ...historyMessages,
-    new HumanMessage(message),
-  ];
-
-  const finalState = await graph.invoke({ messages: initialMessages });
-
-  // By the time execution reaches END, toolsCondition has already
-  // confirmed the last message has no pending tool calls — so it's
-  // guaranteed to be the agent's real final answer, not a tool request.
-  const lastMessage = finalState.messages[finalState.messages.length - 1];
-  return lastMessage.content;
+  const finalState = await graph.invoke({ message, historyMessages, next: "", response: "" });
+  return finalState.response;
 }
 
 module.exports = { runGraph };

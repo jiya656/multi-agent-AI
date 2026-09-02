@@ -102,3 +102,13 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Replaces Day 11's classify/router graph at the top level — that router was explicitly a disposable teaching scaffold; today's agent+tool loop is the real reusable pattern Day 13's specialized agents will be built from
 - `aiService.js` still required zero changes
 - Verified with exact model-call counts: no-tool question = 1 call, single calculation = 2 calls (looped once), two sequential calculations = 3 calls (looped twice) — confirms the loop is real and dynamic, not hardcoded to one iteration
+
+### Day 13
+- Built on the `feature/multi-agent-architecture` branch
+- Added 4 specialized prompts: supervisor, coding, research, document
+- Added 4 agents: `supervisorAgent.js` (LLM-powered, schema-constrained routing via zod), `codingAgent.js` (reuses tool-calling from Days 8-9), `researchAgent.js` and `documentAgent.js` (honest placeholders — no search/RAG yet, they say so rather than hallucinating)
+- Added `state.js` (`next` field), rewrote `router.js` (trivial — real decision already made by the supervisor), 4 new nodes
+- Rewrote `graph.js`: START → supervisorNode → conditional routing → coding/research/document → END. The "end" case is handled directly inside supervisorNode so it produces a real response, not an empty one
+- `aiService.js` still required zero changes — 8th consecutive day
+- Verified: all 4 plan test cases route correctly with real responses, calculator tool still works inside codingNode
+- No return-to-supervisor loop yet (multi-step requests) — deliberately simplified per the plan, coming later
