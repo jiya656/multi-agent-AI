@@ -1,15 +1,13 @@
 // router.js
 //
-// A router answers exactly one question: "given the current state, which
-// node should run next?" It does NOT perform any work itself — it only
-// returns the NAME of the node that should. This distinction matters:
-// classifyMessage (in graph.js) does the deciding-what-category work;
-// this file only translates that decision into a destination name.
+// Deliberately trivial — the real decision already happened inside
+// supervisorAgent.js, constrained by its zod schema. This function just
+// hands that decision (state.next) to LangGraph so it can look up the
+// matching destination in graph.js's pathMap.
 
 function router(state) {
-  const destination = state.category === "coding" ? "codingNode" : "generalNode";
-  console.log("[router] category:", state.category, "-> routing to:", destination);
-  return destination;
+  console.log("[router] supervisor decided:", state.next);
+  return state.next;
 }
 
 module.exports = { router };
