@@ -112,3 +112,7 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - `aiService.js` still required zero changes — 8th consecutive day
 - Verified: all 4 plan test cases route correctly with real responses, calculator tool still works inside codingNode
 - No return-to-supervisor loop yet (multi-step requests) — deliberately simplified per the plan, coming later
+
+### Day 14
+- Confirmed Day 13's supervisor architecture already satisfies Day 14's requirements — no new source files needed
+- Verified 3 additional test cases with less obvious phrasing (e.g. "reverse a linked list" with no literal word "code") — supervisor correctly reasoned by meaning, not keyword matching
