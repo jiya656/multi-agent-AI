@@ -116,3 +116,8 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 ### Day 14
 - Confirmed Day 13's supervisor architecture already satisfies Day 14's requirements — no new source files needed
 - Verified 3 additional test cases with less obvious phrasing (e.g. "reverse a linked list" with no literal word "code") — supervisor correctly reasoned by meaning, not keyword matching
+
+### Day 15
+- Confirmed `codingAgent.js` and `codingNode.js` already satisfy Day 15's requirements from Day 13 — and are more capable than the plan's simpler version (ours already includes tool-calling + conversation memory, which today's plan's version doesn't)
+- Upgraded `codingPrompt.js`'s system instructions: from a one-line description to 8 explicit numbered responsibilities (clean code, debugging, algorithm explanations, complexity analysis, "do not invent information," beginner-friendly explanations)
+- Verified 4 test cases: binary search explanation, segfault debugging, a specific LeetCode problem — all correctly routed to `coding`; a stock market question correctly routed to `research`, not `coding`
