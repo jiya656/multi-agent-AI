@@ -121,3 +121,9 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Confirmed `codingAgent.js` and `codingNode.js` already satisfy Day 15's requirements from Day 13 — and are more capable than the plan's simpler version (ours already includes tool-calling + conversation memory, which today's plan's version doesn't)
 - Upgraded `codingPrompt.js`'s system instructions: from a one-line description to 8 explicit numbered responsibilities (clean code, debugging, algorithm explanations, complexity analysis, "do not invent information," beginner-friendly explanations)
 - Verified 4 test cases: binary search explanation, segfault debugging, a specific LeetCode problem — all correctly routed to `coding`; a stock market question correctly routed to `research`, not `coding`
+
+### Day 16
+- Confirmed `researchAgent.js` and `researchNode.js` already satisfy Day 16's requirements from Day 13
+- Upgraded `researchPrompt.js`'s system instructions to the detailed 9-point responsibilities from today's plan (distinguish facts from assumptions, don't invent sources, organize with headings/bullets when useful) — kept the existing honesty clause about not having live web search yet
+- Verified: microservices, database comparison, and "latest AI developments" all correctly route to `research`; a coding question still correctly routes to `coding`, confirming no regression
+- Important interview point (per the plan): the Research Agent does NOT actually search the web yet — it answers from the model's existing knowledge and is explicitly instructed to be honest about that limitation, not imply real-time search capability it doesn't have
