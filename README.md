@@ -127,3 +127,10 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Upgraded `researchPrompt.js`'s system instructions to the detailed 9-point responsibilities from today's plan (distinguish facts from assumptions, don't invent sources, organize with headings/bullets when useful) — kept the existing honesty clause about not having live web search yet
 - Verified: microservices, database comparison, and "latest AI developments" all correctly route to `research`; a coding question still correctly routes to `coding`, confirming no regression
 - Important interview point (per the plan): the Research Agent does NOT actually search the web yet — it answers from the model's existing knowledge and is explicitly instructed to be honest about that limitation, not imply real-time search capability it doesn't have
+
+### Day 17
+- Confirmed `documentAgent.js` and `documentNode.js` already satisfy Day 17's requirements from Day 13
+- Upgraded `documentPrompt.js`'s system instructions to the detailed 8-point responsibilities from today's plan, while carefully preserving Day 13's critical "RAG isn't connected yet, be honest" clause — this is the exact instruction that prevents hallucinated document summaries
+- Caught and fixed my own testing mistake: initially tested against the OLD prompt content because I forgot to actually apply the file update before running verification — re-tested correctly afterward
+- Verified all 3 routes: coding, research, and document (with correct honest disclosure) all work correctly
+- Now have a complete 3-agent skeleton: coding, research, document — each with its own prompt, agent, and node file
