@@ -1,20 +1,21 @@
 // searchVector.js
-// Day 19: runs a similarity search against the demo point using the
-// same fake query vector — proving the search mechanism works before
-// real embeddings are wired in.
+// Day 19: runs a similarity search against the demo point.
+// NOTE: newer versions of @qdrant/js-client-rest replaced `search()`
+// with `query()` — same purpose, slightly different call shape.
+// query() returns { points: [...] } instead of a bare array.
 
 const qdrantClient = require("./qdrantClient");
 
 const COLLECTION_NAME = "documents";
 
 const searchVector = async () => {
-  const results = await qdrantClient.search(COLLECTION_NAME, {
-    vector: [0.1, 0.2, 0.3, 0.4],
+  const results = await qdrantClient.query(COLLECTION_NAME, {
+    query: [0.1, 0.2, 0.3, 0.4],
     limit: 3,
     with_payload: true
   });
 
-  console.log(results);
+  console.log(results.points);
 };
 
 searchVector();
