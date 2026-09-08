@@ -134,3 +134,12 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Caught and fixed my own testing mistake: initially tested against the OLD prompt content because I forgot to actually apply the file update before running verification — re-tested correctly afterward
 - Verified all 3 routes: coding, research, and document (with correct honest disclosure) all work correctly
 - Now have a complete 3-agent skeleton: coding, research, document — each with its own prompt, agent, and node file
+
+### Day 19
+- Set up Qdrant locally via Docker (ports 6333 HTTP / 6334 gRPC)
+- Installed `@qdrant/js-client-rest` and added `QDRANT_URL` to `.env` / `.env.example`
+- Created `ai/vector/qdrantClient.js` — single shared Qdrant connection (loads dotenv itself since these scripts run standalone, not through server.js)
+- Created `ai/vector/createCollection.js` — creates the `documents` collection (demo 4-dim vectors, Cosine distance)
+- Created `ai/vector/insertVector.js` and `searchVector.js` — verified insert + similarity search work end-to-end with a manual demo vector
+- Confirmed via Qdrant dashboard that the collection and point exist
+- Real embedding dimension will replace the demo `size: 4` once an embedding model is chosen (Day 20)
