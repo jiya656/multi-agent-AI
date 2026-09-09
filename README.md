@@ -143,3 +143,13 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Created `ai/vector/insertVector.js` and `searchVector.js` — verified insert + similarity search work end-to-end with a manual demo vector
 - Confirmed via Qdrant dashboard that the collection and point exist
 - Real embedding dimension will replace the demo `size: 4` once an embedding model is chosen (Day 20)
+
+### Day 20
+- Discovered mid-implementation that `@langchain/community` was officially sunset (archived May 2026) — pivoted to calling `@huggingface/transformers` directly instead of through LangChain's wrapper
+- Upgraded `@langchain/core` (→ 1.2.9) and `@langchain/groq` (→ 1.3.1) together to resolve a peer dependency requirement — verified via Postman that the existing chat/agent flow still works correctly after the upgrade
+- Chose local, free embeddings (Xenova/all-MiniLM-L6-v2 via Hugging Face Transformers.js) instead of OpenAI, since Groq has no embedding models of its own
+- Created `ai/models/embeddingModel.js` — local embedding model, no API key, downloads weights once (~90MB) and caches them; added progress logging since the first run has no visible output otherwise
+- Created `ai/vector/createDocumentCollection.js` — real `document_chunks` collection sized to 384 dimensions
+- Created `ai/rag/textSplitter.js` — chunks text with 1000-char chunks, 200-char overlap
+- Created `ai/rag/testRag.js` — verified end-to-end: real text → real embeddings → Qdrant storage → similarity search → correctly retrieved the supervised-learning chunk for a real question (top score 0.85 vs 0.57 for the next closest)
+- Not yet done: actual PDF upload/ingestion (Day 21+)
