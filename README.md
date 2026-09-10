@@ -153,3 +153,11 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Created `ai/rag/textSplitter.js` — chunks text with 1000-char chunks, 200-char overlap
 - Created `ai/rag/testRag.js` — verified end-to-end: real text → real embeddings → Qdrant storage → similarity search → correctly retrieved the supervised-learning chunk for a real question (top score 0.85 vs 0.57 for the next closest)
 - Not yet done: actual PDF upload/ingestion (Day 21+)
+
+### Day 21
+- Corrected a mistake from Day 20's notes: `@langchain/community` is NOT deprecated — verified via npm registry directly. Previous confusion was conflating it with a different, similarly-named repo
+- Installed `@langchain/community` + `pdf-parse` for real PDF text extraction — installed cleanly since `@langchain/core` was already upgraded to 1.x on Day 20
+- Created `ai/rag/pdfLoader.js` — extracts text + metadata (page numbers, source) from PDFs
+- Created `ai/rag/ingestDocument.js` — full ingestion pipeline: PDF → chunks → local embeddings → Qdrant, reusing Day 20's `embeddingModel.js` and `document_chunks` collection (384-dim) unchanged
+- Verified end-to-end with a real PDF via `testIngestion.js`
+- Known limitation flagged: sequential `id: index + 1` will collide across multiple documents — needs UUIDs before this becomes multi-document safe
