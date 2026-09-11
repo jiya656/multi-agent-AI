@@ -161,3 +161,9 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Created `ai/rag/ingestDocument.js` — full ingestion pipeline: PDF → chunks → local embeddings → Qdrant, reusing Day 20's `embeddingModel.js` and `document_chunks` collection (384-dim) unchanged
 - Verified end-to-end with a real PDF via `testIngestion.js`
 - Known limitation flagged: sequential `id: index + 1` will collide across multiple documents — needs UUIDs before this becomes multi-document safe
+
+### Day 22
+- Created `ai/rag/retrieveDocuments.js` — embeds a question via `embedQuery()`, searches `document_chunks` via Qdrant, returns clean `{ text, score, documentId, metadata }` results
+- Corrected for the same `search()` → `query()` API change discovered on Day 19 — the plan's original code would have failed identically
+- Verified via `testRetrieval.js` against the collection's current mixed contents (Day 20 demo leftovers + Day 21 resume chunks)
+- Understood: embedQuery() vs embedDocuments(), why similarity score isn't "correctness," why retrieving too many chunks can hurt rather than help, why document-level filtering (Qdrant payload filtering) will eventually be needed once multiple documents coexist
