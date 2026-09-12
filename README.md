@@ -167,3 +167,11 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Corrected for the same `search()` → `query()` API change discovered on Day 19 — the plan's original code would have failed identically
 - Verified via `testRetrieval.js` against the collection's current mixed contents (Day 20 demo leftovers + Day 21 resume chunks)
 - Understood: embedQuery() vs embedDocuments(), why similarity score isn't "correctness," why retrieving too many chunks can hurt rather than help, why document-level filtering (Qdrant payload filtering) will eventually be needed once multiple documents coexist
+
+### Day 23
+- Corrected the plan's assumed `documentAgent.js` structure to match the actual Day 17 implementation (`runDocumentAgent(message, historyMessages)` using `documentPrompt.formatMessages()`, not a raw string prompt)
+- Critical update: removed/replaced the Day 13/17 "RAG isn't connected yet" honesty clause in `documentPrompt.js` — that instruction is now false and would have contradicted real retrieved context. Replaced with a narrower honesty clause: only claim what's in the retrieved excerpts, say so if the context is insufficient
+- Added a `{context}` placeholder to `documentPrompt.js`'s user message template
+- Connected `retrieveDocuments.js` (already fixed for `search()`→`query()` on Day 22) into `documentAgent.js` — retrieves 3 chunks, formats them as numbered sources, passes them as context
+- Verified end-to-end via `testDocumentAgent.js`: real question → real retrieval from resume → real grounded answer, no more "coming soon" placeholder response
+- Known limitations carried forward: no score threshold (irrelevant chunks would still get passed to the LLM), no document-level filtering (searches all chunks regardless of which document), ID collisions still possible with multiple documents
