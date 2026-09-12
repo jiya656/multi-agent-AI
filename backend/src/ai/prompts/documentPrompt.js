@@ -2,15 +2,12 @@
 // researchPrompt.js: a system instruction + {history} placeholder +
 // {question} slot.
 //
-// Day 17: upgraded from a short paragraph to explicit, numbered
-// responsibilities, matching the same upgrade pattern applied to
-// codingPrompt.js (Day 15) and researchPrompt.js (Day 16).
-//
-// CRITICAL: preserved the existing "RAG isn't connected yet, be honest"
-// clause from Day 13 — this is the exact instruction that made Day 13's
-// test correctly return "document Q&A is coming soon" instead of a
-// hallucinated summary. Losing this during the rewrite would be a real
-// regression, not just a missed nice-to-have.
+// Day 23 update: RAG retrieval is now actually connected. The Day 13/17
+// "RAG isn't connected yet, say so" clause is now FALSE and has been
+// replaced — leaving it in would make the LLM contradict itself against
+// real retrieved context. The new honesty clause is narrower but just as
+// important: only claim knowledge that's actually in the retrieved
+// excerpts, and say so plainly if the context doesn't contain the answer.
 
 const { ChatPromptTemplate } = require("@langchain/core/prompts");
 
@@ -32,15 +29,22 @@ When answering document-related questions:
 - Give a clear and structured response.
 - Mention uncertainty when the provided context is insufficient.
 
-Important: document retrieval (RAG) isn't connected yet (a later phase) — you do not
-actually have access to any uploaded document's content right now. If asked about an
-uploaded document, politely explain that document Q&A is coming soon, rather than
-guessing at or inventing content you don't actually have access to.`;
+Important: you only ever see a small number of retrieved excerpts from the
+user's document, not the entire document. If the provided context doesn't
+contain enough information to answer the question, say so honestly rather
+than guessing or inventing an answer.`;
 
 const documentPrompt = ChatPromptTemplate.fromMessages([
   ["system", DOCUMENT_SYSTEM_PROMPT],
   ["placeholder", "{history}"],
-  ["user", "{question}"],
+  ["user", `Relevant document context:
+
+{context}
+
+User question:
+{question}
+
+Answer the question using the provided document context.`],
 ]);
 
 module.exports = { documentPrompt };
