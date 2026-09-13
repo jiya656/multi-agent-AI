@@ -175,3 +175,11 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Connected `retrieveDocuments.js` (already fixed for `search()`→`query()` on Day 22) into `documentAgent.js` — retrieves 3 chunks, formats them as numbered sources, passes them as context
 - Verified end-to-end via `testDocumentAgent.js`: real question → real retrieval from resume → real grounded answer, no more "coming soon" placeholder response
 - Known limitations carried forward: no score threshold (irrelevant chunks would still get passed to the LLM), no document-level filtering (searches all chunks regardless of which document), ID collisions still possible with multiple documents
+
+### Day 24
+- Added `documentId` to `GraphState` (matching the project's actual singular `message` state shape, not the plan's generic `messages` array assumption)
+- Updated `retrieveDocuments.js` with Qdrant metadata filtering (`filter.must[].match`) restricting search to a specific `documentId`, plus a score threshold (0.5, to be tuned) dropping low-relevance results
+- Updated `documentAgent.js` to accept and pass through `documentId`, and to honestly respond "I couldn't find relevant information..." when nothing passes the threshold, instead of guessing
+- Updated `documentNode.js` to pass `state.documentId` through — the one node that DID need a change this time, unlike Day 23
+- Verified with two separately-ingested documents: correct document returns a real grounded answer, wrong document correctly returns nothing found
+- Not yet done: userId-based filtering / multi-user document ownership (flagged in the plan as a future security concern once JWT-based auth connects to document access)
