@@ -2,7 +2,13 @@
 // Day 21: the real ingestion pipeline — coordinates PDF loading, chunking,
 // embedding, and storage into Qdrant. Uses our existing local embedding
 // model (embedDocuments), same interface as testRag.js used on Day 20.
+//
+// Day 24 fix: point IDs now use crypto.randomUUID() instead of a bare
+// index counter. The old `id: index + 1` caused a real bug — ingesting
+// any second document with 3+ chunks would silently overwrite the first
+// document's points, since both started counting from 1.
 
+const crypto = require("crypto");
 const loadPDF = require("./pdfLoader");
 const textSplitter = require("./textSplitter");
 const embeddings = require("../models/embeddingModel");
@@ -25,7 +31,7 @@ const ingestDocument = async (filePath, documentId) => {
 
   // 4. Prepare Qdrant points
   const points = chunks.map((chunk, index) => ({
-    id: index + 1,
+    id: crypto.randomUUID(),
     vector: vectors[index],
     payload: {
       text: chunk.pageContent,
