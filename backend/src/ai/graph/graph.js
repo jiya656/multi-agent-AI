@@ -41,8 +41,14 @@ const graph = new StateGraph(GraphState)
   .compile();
 
 async function runGraph(message, historyMessages = []) {
-  const finalState = await graph.invoke({ message, historyMessages, next: "", response: "" });
-  return finalState.response;
+  const finalState = await graph.invoke({
+    message,
+    historyMessages,
+    next: "",
+    response: "",
+    sources: []
+  });
+  return { text: finalState.response, sources: finalState.sources || [] };
 }
 
 module.exports = { runGraph };
