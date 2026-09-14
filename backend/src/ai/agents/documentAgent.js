@@ -1,27 +1,21 @@
-// documentAgent.js
-// Day 24: now accepts documentId and passes it to the retriever, so
-// retrieval only searches the selected document's chunks. Also handles
-// the case where nothing relevant is found, instead of guessing.
-
 const { getChatModel } = require("../models/chatModel");
 const { documentPrompt } = require("../prompts/documentPrompt");
 const retrieveDocuments = require("../rag/retrieveDocuments");
+const formatContext = require("../rag/formatContext");
+const formatSources = require("../rag/formatSources");
 
 async function runDocumentAgent(message, historyMessages = [], documentId) {
-  // 1. Retrieve relevant chunks, restricted to this document
-  const retrievedDocuments = await retrieveDocuments(message, documentId, 3);
+  const retrievedDocuments = await retrieveDocuments(message, documentId, 5);
 
-  // 2. If nothing relevant was found, don't guess — say so honestly
   if (retrievedDocuments.length === 0) {
-    return "I couldn't find relevant information about this in the selected document.";
+    return {
+      answer: "I couldn't find relevant information about this in the selected document.",
+      sources: []
+    };
   }
 
-  // 3. Build context string from retrieved chunks
-  const context = retrievedDocuments
-    .map((doc, i) => `Source ${i + 1}:\n${doc.text}`)
-    .join("\n\n");
+  const context = formatContext(retrievedDocuments);
 
-  // 4. Format the prompt with history, retrieved context, and the question
   const messages = await documentPrompt.formatMessages({
     history: historyMessages,
     context,
@@ -30,7 +24,11 @@ async function runDocumentAgent(message, historyMessages = [], documentId) {
 
   const model = getChatModel();
   const response = await model.invoke(messages);
-  return response.content;
+
+  return {
+    answer: response.content,
+    sources: formatSources(retrievedDocuments)
+  };
 }
 
 module.exports = { runDocumentAgent };

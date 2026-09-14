@@ -1,9 +1,3 @@
-// Message.js
-//
-// Each message is its own document, linked back to a Conversation via a
-// reference (see the "why separate Conversation and Message" note in
-// chatController.js for the reasoning).
-
 const mongoose = require("mongoose");
 
 const messageSchema = new mongoose.Schema(
@@ -15,16 +9,28 @@ const messageSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["user", "assistant", "system", "tool"], // "system"/"tool" reserved for the agent work coming later
+      enum: ["user", "assistant", "system", "tool"],
       required: true,
     },
     content: {
       type: String,
       required: true,
     },
+    sources: {
+      type: [
+        {
+          documentId: String,
+          fileName: String,
+          pageNumber: Number,
+          score: Number,
+          _id: false,
+        },
+      ],
+      default: [],
+    },
   },
   {
-    timestamps: true, // createdAt is what we sort messages by within a conversation
+    timestamps: true,
   }
 );
 

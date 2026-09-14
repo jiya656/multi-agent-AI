@@ -10,13 +10,20 @@
 // history and returns a response string. Same pattern as every previous
 // day: getAIResponse()'s outside behavior is unchanged, so
 // chatController.js STILL needs zero changes.
+//
+// Day 25: runGraph() now returns { text, sources } instead of a bare
+// string, since the Document Agent produces real citations that need to
+// reach the frontend. getAIResponse()'s contract changes here too — it
+// now returns { text, sources } instead of a plain string. This DOES
+// require chatController.js to change (see Day 25 notes) — the comment
+// above about "STILL needs zero changes" no longer holds as of today.
 
 const { HumanMessage, AIMessage } = require("@langchain/core/messages");
 const { runGraph } = require("../ai/graph/graph");
 
 // Takes the full message history for a conversation (from MongoDB,
 // INCLUDING the just-saved newest user message) and returns the AI's
-// reply as a plain string. Throws a typed Error on any failure.
+// reply as { text, sources }. Throws a typed Error on any failure.
 async function getAIResponse(conversationHistory) {
   if (!process.env.LLM_API_KEY) {
     const err = new Error("LLM_API_KEY is not configured");
@@ -33,15 +40,15 @@ async function getAIResponse(conversationHistory) {
   );
 
   try {
-    const responseText = await runGraph(last.content, priorMessages);
+    const { text, sources } = await runGraph(last.content, priorMessages);
 
-    if (!responseText) {
+    if (!text) {
       const err = new Error("LLM provider returned an empty response");
       err.type = "EMPTY_RESPONSE";
       throw err;
     }
 
-    return responseText;
+    return { text, sources };
   } catch (err) {
     if (err.type) throw err; // already one of our typed errors — pass through as-is
 

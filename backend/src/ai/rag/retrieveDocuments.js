@@ -11,7 +11,7 @@ const qdrantClient = require("../vector/qdrantClient");
 const COLLECTION_NAME = "document_chunks";
 const MIN_SCORE = 0.2; // experiment with this — not a universal constant
 
-const retrieveDocuments = async (question, documentId, limit = 3) => {
+const retrieveDocuments = async (question, documentId, limit = 5) => {
   const queryVector = await embeddings.embedQuery(question);
 
   const results = await qdrantClient.query(COLLECTION_NAME, {

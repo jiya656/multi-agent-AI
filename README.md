@@ -183,3 +183,10 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Updated `documentNode.js` to pass `state.documentId` through — the one node that DID need a change this time, unlike Day 23
 - Verified with two separately-ingested documents: correct document returns a real grounded answer, wrong document correctly returns nothing found
 - Not yet done: userId-based filtering / multi-user document ownership (flagged in the plan as a future security concern once JWT-based auth connects to document access)
+
+### Day 25
+- Implemented the full structured `{ answer, sources }` return from `documentAgent.js`, propagated end-to-end: `documentNode.js` → `graph.js` (`runGraph` now returns `{ text, sources }`) → `aiService.js` (`getAIResponse` returns `{ text, sources }`) → `chatController.js` → `Message` schema (new `sources` field)
+- Added `sources` to `GraphState` with a safe empty-array default, so coding/research agents (which never set it) don't break
+- Added `formatContext.js` and `formatSources.js`, adapted to this project's actual metadata shape (`metadata.source` path + `metadata.loc.pageNumber`)
+- Verified via Postman that coding/research agents still work correctly and return `sources: []`, and that document questions now return both a real answer and populated source citations in the API response
+- This was a larger, coordinated change across 7 files rather than an isolated `documentAgent.js` edit — necessary because the project's existing string-only contract (aiService → chatController → Message.content) had no room for a sources field without updating the whole chain together

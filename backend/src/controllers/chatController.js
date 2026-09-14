@@ -91,11 +91,12 @@ async function addMessage(req, res) {
 
     let assistantMessage;
     try {
-      const aiText = await getAIResponse(history);
+      const { text, sources } = await getAIResponse(history);
       assistantMessage = await Message.create({
         conversation: chat._id,
         role: "assistant",
-        content: aiText,
+        content: text,
+        sources: sources || [],
       });
     } catch (aiErr) {
       // Log the real technical error for OUR debugging, but never leak
