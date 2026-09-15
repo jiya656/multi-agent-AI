@@ -12,6 +12,7 @@ require("dotenv").config();
 const connectDB = require("./config/database");
 const authRoutes = require("./routes/authRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const documentRoutes = require("./routes/documentRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -42,6 +43,11 @@ app.use("/api/auth", authRoutes);
 // under /api/chats — so router.post("/", ...) becomes POST /api/chats,
 // router.post("/:id/messages", ...) becomes POST /api/chats/:id/messages, etc.
 app.use("/api/chats", chatRoutes);
+
+// Day 26: every route in documentRoutes.js is protected by JWT (same
+// `protect` pattern as chatRoutes.js) and mounted under /api/documents —
+// so router.post("/upload", ...) becomes POST /api/documents/upload.
+app.use("/api/documents", documentRoutes);
 
 // Connect to MongoDB FIRST, and only start accepting requests once that
 // succeeds. If the database isn't reachable, we don't want a backend that
