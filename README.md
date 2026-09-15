@@ -190,3 +190,12 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Added `formatContext.js` and `formatSources.js`, adapted to this project's actual metadata shape (`metadata.source` path + `metadata.loc.pageNumber`)
 - Verified via Postman that coding/research agents still work correctly and return `sources: []`, and that document questions now return both a real answer and populated source citations in the API response
 - This was a larger, coordinated change across 7 files rather than an isolated `documentAgent.js` edit — necessary because the project's existing string-only contract (aiService → chatController → Message.content) had no room for a sources field without updating the whole chain together
+
+### Day 26
+- Added `Document.js` model (MongoDB) tracking uploaded PDFs — filename, path, processing status, owner
+- Added Multer-based `uploadMiddleware.js` (PDF-only, 10MB limit)
+- Added `documentService.js` coordinating MongoDB record creation + `ingestDocument.js` (unchanged since Day 21 — already accepted `(filePath, documentId)`)
+- Added `documentController.js` + `documentRoutes.js`, protected with the same `protect` JWT middleware as `chatRoutes.js` — `userId` comes from `req.user.id` (verified token), never trusted from the request body, per Day 24's security notes
+- Mounted `/api/documents` in `server.js`
+- Verified end-to-end via Postman: real PDF upload → MongoDB record with `status: completed` → matching chunks in Qdrant with the correct `documentId`
+- **Known gap, NOT solved today:** chat messages still have no way to specify which `documentId` to query, and the Supervisor still has no routing logic connecting a question to the Document Agent (confirmed broken via Postman on Day 25). Today only builds the upload/ingestion half — the chat-side wiring is still open
