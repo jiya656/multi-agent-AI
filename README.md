@@ -199,3 +199,10 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Mounted `/api/documents` in `server.js`
 - Verified end-to-end via Postman: real PDF upload → MongoDB record with `status: completed` → matching chunks in Qdrant with the correct `documentId`
 - **Known gap, NOT solved today:** chat messages still have no way to specify which `documentId` to query, and the Supervisor still has no routing logic connecting a question to the Document Agent (confirmed broken via Postman on Day 25). Today only builds the upload/ingestion half — the chat-side wiring is still open
+
+### Day 27
+- Adapted to actual frontend conventions: no separate `documentApi.js` service file (chatSlice.js already established the pattern of calling the shared `api` axios instance directly inside thunks) — `documentSlice.js` follows that exact style
+- Confirmed no new npm installs needed — axios, Redux Toolkit, react-router-dom, cors all already present since earlier days
+- Upload now correctly authenticated: the shared `api.js` interceptor auto-attaches the JWT, satisfying Day 26's `protect` middleware requirement (the original plan's plain `fetch()` would have failed with 401)
+- Added `/documents` route (protected, matching the `/chat` pattern) instead of an unrouted floating page
+- Verified end-to-end through the real UI: login → select PDF → upload → confirmed in React, MongoDB, and Qdrant
