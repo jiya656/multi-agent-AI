@@ -4,14 +4,13 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Chat from "./pages/Chat";
+import Documents from "./pages/Documents";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Default route: just send people to login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
-
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
 
@@ -24,9 +23,6 @@ function App() {
           }
         />
 
-        {/* Two routes, same component: /chat (nothing selected yet) and
-        /chat/:id (a specific conversation open). Chat.jsx reads the
-        :id param itself via useParams(). */}
         <Route
           path="/chat"
           element={
@@ -40,6 +36,15 @@ function App() {
           element={
             <ProtectedRoute>
               <Chat />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/documents"
+          element={
+            <ProtectedRoute>
+              <Documents />
             </ProtectedRoute>
           }
         />
