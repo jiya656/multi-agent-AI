@@ -206,3 +206,13 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Upload now correctly authenticated: the shared `api.js` interceptor auto-attaches the JWT, satisfying Day 26's `protect` middleware requirement (the original plan's plain `fetch()` would have failed with 401)
 - Added `/documents` route (protected, matching the `/chat` pattern) instead of an unrouted floating page
 - Verified end-to-end through the real UI: login → select PDF → upload → confirmed in React, MongoDB, and Qdrant
+
+### Day 28
+- Added `GET /api/documents` — protected, filters strictly by `req.user.id` (no unauthenticated fallback, since the route requires JWT via `router.use(protect)`)
+- Skipped a separate `documentApi.js` file again, matching Day 27's convention — `getDocumentsThunk` calls the shared `api` instance directly inside `documentSlice.js`
+- Added `selectedDocumentId` state and `selectDocument`/`clearSelectedDocument` reducers
+- Added `DocumentList.jsx`, updated `Documents.jsx` to show it alongside the upload form
+- Found and diagnosed a real issue while testing: an early GET request returned an empty array — traced it to querying with a JWT from a different user account than the one that owned the existing uploaded documents, since `GET /api/documents` correctly filters by `userId`. Re-tested consistently under one account afterward
+- Also surfaced two genuine past upload failures (`status: "failed"`, `errorMessage: "fetch failed"`) sitting in MongoDB from earlier testing — confirmed this is Day 26's error-handling working as designed (recording failure state rather than losing it), most likely caused by Qdrant not running at the time of those attempts
+- Verified: documents persist across a page refresh (proving the real GET flow, not local state), and selecting between multiple documents correctly updates `selectedDocumentId` each time
+- Did not touch the Supervisor or chat request shape today — confirmed as Day 29 (thread documentId into chat) and Day 30 (Supervisor routing) per the plan's explicit sequence
