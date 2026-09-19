@@ -37,15 +37,11 @@ export const fetchChat = createAsyncThunk("chat/fetchChat", async (chatId, { rej
 
 export const sendMessage = createAsyncThunk(
   "chat/sendMessage",
-  async ({ chatId, content }, { rejectWithValue }) => {
+  async ({ chatId, content, documentId = null }, { rejectWithValue }) => {
     try {
-      const res = await api.post(`/chats/${chatId}/messages`, { content });
-      return res.data; // { userMessage, assistantMessage }
+      const res = await api.post(`/chats/${chatId}/messages`, { content, documentId });
+      return res.data;
     } catch (err) {
-      // Even when the AI call fails, the backend still managed to SAVE
-      // the user's message — and includes it in the error response. We
-      // pass that through too, so the UI can still show what the user
-      // actually sent, instead of it just vanishing.
       return rejectWithValue({
         error: err.response?.data?.error || "Failed to send message",
         userMessage: err.response?.data?.userMessage || null,
