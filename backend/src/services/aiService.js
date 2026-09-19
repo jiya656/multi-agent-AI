@@ -24,7 +24,7 @@ const { runGraph } = require("../ai/graph/graph");
 // Takes the full message history for a conversation (from MongoDB,
 // INCLUDING the just-saved newest user message) and returns the AI's
 // reply as { text, sources }. Throws a typed Error on any failure.
-async function getAIResponse(conversationHistory) {
+async function getAIResponse(conversationHistory, documentId) {
   if (!process.env.LLM_API_KEY) {
     const err = new Error("LLM_API_KEY is not configured");
     err.type = "CONFIG_ERROR";
