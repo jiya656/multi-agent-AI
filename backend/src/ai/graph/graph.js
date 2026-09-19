@@ -40,13 +40,14 @@ const graph = new StateGraph(GraphState)
   .addEdge("documentNode", END)
   .compile();
 
-async function runGraph(message, historyMessages = []) {
+async function runGraph(message, historyMessages = [], documentId = null) {
   const finalState = await graph.invoke({
     message,
     historyMessages,
     next: "",
     response: "",
-    sources: []
+    sources: [],
+    documentId
   });
   return { text: finalState.response, sources: finalState.sources || [] };
 }
