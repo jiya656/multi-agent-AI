@@ -216,3 +216,11 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Also surfaced two genuine past upload failures (`status: "failed"`, `errorMessage: "fetch failed"`) sitting in MongoDB from earlier testing — confirmed this is Day 26's error-handling working as designed (recording failure state rather than losing it), most likely caused by Qdrant not running at the time of those attempts
 - Verified: documents persist across a page refresh (proving the real GET flow, not local state), and selecting between multiple documents correctly updates `selectedDocumentId` each time
 - Did not touch the Supervisor or chat request shape today — confirmed as Day 29 (thread documentId into chat) and Day 30 (Supervisor routing) per the plan's explicit sequence
+
+### Day 29
+- Threaded `documentId` from a chat request into graph state — required changes in only 3 backend files (`chatController.js`, `aiService.js`, `graph.js`), since `state.js`, `documentNode.js`, and `documentAgent.js` already had the necessary fields/logic from Day 24/25 but never actually received a value
+- The real gap was a single missing key in `graph.js`'s `runGraph()` — `documentId` was never included in the object passed to `graph.invoke()`, despite `state.js` already defining the field
+- Updated `chatSlice.js`'s `sendMessage` thunk and `Chat.jsx` to read `selectedDocumentId` from Redux and include it in the request body
+- Note: while reconstructing `chatController.js` for today's edit, found that a locally-held reference copy of the file predated Day 25's `{ text, sources }` changes — reconstructed the file combining Day 25's existing changes with today's `documentId` addition rather than risk silently reverting Day 25's work
+- **Not fully verified end-to-end today** — the full Postman/browser test chain (Section 7 of the plan) was skipped; the actual data flow through `graph.invoke()` should be confirmed before relying on it in Day 30
+- **Still expected, per the plan:** even with documentId threading complete, the Supervisor still doesn't route document questions to the Document Agent — that remains Day 30's task

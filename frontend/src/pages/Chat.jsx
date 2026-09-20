@@ -16,6 +16,7 @@ export default function Chat() {
   const { id: chatIdFromUrl } = useParams();
 
   const { chats, currentChat, messages, loading, error } = useSelector((state) => state.chat);
+  const selectedDocumentId = useSelector((state) => state.documents.selectedDocumentId);
   const [input, setInput] = useState("");
 
   // Load the sidebar list once, on mount.
@@ -41,11 +42,11 @@ export default function Chat() {
   }
 
   async function handleSend() {
-    if (!input.trim() || !currentChat) return;
-    const content = input.trim();
-    setInput("");
-    await dispatch(sendMessage({ chatId: currentChat._id, content }));
-  }
+  if (!input.trim() || !currentChat) return;
+  const content = input.trim();
+  setInput("");
+  await dispatch(sendMessage({ chatId: currentChat._id, content, documentId: selectedDocumentId }));
+}
 
   async function handleDelete(chatId, e) {
     e.stopPropagation(); // don't also trigger navigating INTO the chat we're deleting

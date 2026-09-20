@@ -62,7 +62,7 @@ async function getChat(req, res) {
 // POST /api/chats/:id/messages
 async function addMessage(req, res) {
   try {
-    const { content } = req.body;
+    const { content, documentId } = req.body;
     if (!content || !content.trim()) {
       return res.status(400).json({ error: "content is required" });
     }
@@ -91,7 +91,7 @@ async function addMessage(req, res) {
 
     let assistantMessage;
     try {
-      const { text, sources } = await getAIResponse(history);
+      const { text, sources } = await getAIResponse(history, documentId);
       assistantMessage = await Message.create({
         conversation: chat._id,
         role: "assistant",
