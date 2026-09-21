@@ -1,23 +1,3 @@
-// aiService.js
-//
-// Day 6: raw fetch() call to Groq.
-// Day 7: LangChain (prompt -> model chain).
-// Day 8: grew a tool-calling loop.
-// Day 9: that loop moved into ai/agents/agent.js.
-// Day 10: aiService now calls ai/graph/graph.js instead of the agent
-// directly. It doesn't know or care that there's a graph with state,
-// nodes, and edges underneath — only that runGraph() takes a message +
-// history and returns a response string. Same pattern as every previous
-// day: getAIResponse()'s outside behavior is unchanged, so
-// chatController.js STILL needs zero changes.
-//
-// Day 25: runGraph() now returns { text, sources } instead of a bare
-// string, since the Document Agent produces real citations that need to
-// reach the frontend. getAIResponse()'s contract changes here too — it
-// now returns { text, sources } instead of a plain string. This DOES
-// require chatController.js to change (see Day 25 notes) — the comment
-// above about "STILL needs zero changes" no longer holds as of today.
-
 const { HumanMessage, AIMessage } = require("@langchain/core/messages");
 const { runGraph } = require("../ai/graph/graph");
 
@@ -40,7 +20,7 @@ async function getAIResponse(conversationHistory, documentId) {
   );
 
   try {
-    const { text, sources } = await runGraph(last.content, priorMessages);
+    const { text, sources } = await runGraph(last.content, priorMessages, documentId);
 
     if (!text) {
       const err = new Error("LLM provider returned an empty response");
