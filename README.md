@@ -224,3 +224,9 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Note: while reconstructing `chatController.js` for today's edit, found that a locally-held reference copy of the file predated Day 25's `{ text, sources }` changes — reconstructed the file combining Day 25's existing changes with today's `documentId` addition rather than risk silently reverting Day 25's work
 - **Not fully verified end-to-end today** — the full Postman/browser test chain (Section 7 of the plan) was skipped; the actual data flow through `graph.invoke()` should be confirmed before relying on it in Day 30
 - **Still expected, per the plan:** even with documentId threading complete, the Supervisor still doesn't route document questions to the Document Agent — that remains Day 30's task
+
+### Day 30
+- Added document-aware routing to `supervisorNode.js`: if `state.documentId` is present, route directly to the Document Agent, bypassing the Supervisor LLM's decision entirely — the application already has certain knowledge of intent once a document is explicitly selected
+- Confirmed no changes were needed to `router.js`, `documentAgent.js`, `documentNode.js`, or `retrieveDocuments.js` — all were already correctly wired for `documentId` since Day 24/25/29; today's gap was purely at the routing-decision level
+- Verified all three cases: no document → normal LLM-based routing (coding/research), document selected + relevant question → direct routing to Document Agent with correct retrieval, document-relevant question with no document selected → falls back to normal routing (regression confirmed intact)
+- **This closes the routing gap first found on Day 25** — a real chat message with a selected document now reliably reaches the Document Agent, rather than depending on the Supervisor LLM to infer document-relatedness from phrasing alone
