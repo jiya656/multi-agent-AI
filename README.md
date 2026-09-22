@@ -230,3 +230,13 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Confirmed no changes were needed to `router.js`, `documentAgent.js`, `documentNode.js`, or `retrieveDocuments.js` — all were already correctly wired for `documentId` since Day 24/25/29; today's gap was purely at the routing-decision level
 - Verified all three cases: no document → normal LLM-based routing (coding/research), document selected + relevant question → direct routing to Document Agent with correct retrieval, document-relevant question with no document selected → falls back to normal routing (regression confirmed intact)
 - **This closes the routing gap first found on Day 25** — a real chat message with a selected document now reliably reaches the Document Agent, rather than depending on the Supervisor LLM to infer document-relatedness from phrasing alone
+
+### Day 31
+- Debugged a real, multi-hour issue: after selecting a document and asking a question, answers kept coming from the Research Agent instead of the Document Agent — despite Day 29/30's `documentId` threading and Supervisor short-circuit both being correct
+- Root cause traced to a missing feature, not a bug: no in-app navigation existed between `/documents` and `/chat` (flagged back on Day 27 but never fixed), so switching pages meant typing the URL directly — which triggers a full browser reload and wipes Redux's in-memory `selectedDocumentId` back to `null`. Every backend piece (routing, retrieval, sources) had been correct the entire time
+- Added `<Link>` navigation between `Documents.jsx` and `Chat.jsx` (React Router client-side navigation, which does not reload the page or clear Redux state) — closes the Day 27 gap
+- Verified end-to-end with a real document: question correctly routed to the Document Agent, retrieval returned accurate content, and — Day 31's actual original goal — sources now render under the assistant's answer in the UI
+- Added `DocumentSources.jsx`, wired into `Chat.jsx`'s message list (renders under each assistant message using the `sources` field already returned by the backend since Day 25)
+- De-duplicated repeated source lines in `DocumentSources.jsx` (multiple retrieved chunks often share the same file/page) — same fix already applied to the backend's plain-text footer in `documentAgent.js` back on Day 25, now applied consistently on the frontend
+- Removed a temporary debug `console.log` from `Chat.jsx` before committing
+- **This closes the loop that started with the Day 25 routing gap and the Day 27 "no navigation link exists yet" note** — document Q&A with citations now works reliably through the real UI, not just via Postman

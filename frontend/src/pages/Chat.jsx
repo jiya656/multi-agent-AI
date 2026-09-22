@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
+import DocumentSources from "../components/DocumentSources";
+import { Link } from "react-router-dom";
+
 import {
   fetchChats,
   createChat,
@@ -15,8 +18,12 @@ export default function Chat() {
   const navigate = useNavigate();
   const { id: chatIdFromUrl } = useParams();
 
-  const { chats, currentChat, messages, loading, error } = useSelector((state) => state.chat);
-  const selectedDocumentId = useSelector((state) => state.documents.selectedDocumentId);
+  const { chats, currentChat, messages, loading, error } = useSelector(
+    (state) => state.chat
+  );
+  const selectedDocumentId = useSelector(
+    (state) => state.documents.selectedDocumentId
+  );
   const [input, setInput] = useState("");
 
   // Load the sidebar list once, on mount.
@@ -42,11 +49,18 @@ export default function Chat() {
   }
 
   async function handleSend() {
-  if (!input.trim() || !currentChat) return;
-  const content = input.trim();
-  setInput("");
-  await dispatch(sendMessage({ chatId: currentChat._id, content, documentId: selectedDocumentId }));
-}
+    if (!input.trim() || !currentChat) return;
+    const content = input.trim();
+    setInput("");
+    <Link to="/documents">📄 Documents</Link>
+    await dispatch(
+      sendMessage({
+        chatId: currentChat._id,
+        content,
+        documentId: selectedDocumentId,
+      })
+    );
+  }
 
   async function handleDelete(chatId, e) {
     e.stopPropagation(); // don't also trigger navigating INTO the chat we're deleting
@@ -59,7 +73,15 @@ export default function Chat() {
   return (
     <div style={{ display: "flex", height: "100vh", fontFamily: "sans-serif" }}>
       {/* Sidebar */}
-      <div style={{ width: 240, borderRight: "1px solid #ddd", padding: 16, display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          width: 240,
+          borderRight: "1px solid #ddd",
+          padding: 16,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         <button
           onClick={handleNewChat}
           style={{ padding: "8px 12px", marginBottom: 16, cursor: "pointer" }}
@@ -83,13 +105,24 @@ export default function Chat() {
                 alignItems: "center",
               }}
             >
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span
+                style={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {c.title}
               </span>
               <button
                 onClick={(e) => handleDelete(c._id, e)}
                 title="Delete chat"
-                style={{ border: "none", background: "none", cursor: "pointer", color: "#999" }}
+                style={{
+                  border: "none",
+                  background: "none",
+                  cursor: "pointer",
+                  color: "#999",
+                }}
               >
                 ✕
               </button>
@@ -101,12 +134,17 @@ export default function Chat() {
       {/* Chat area */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
-          {!currentChat && <p style={{ color: "#999" }}>Select a chat or start a new one.</p>}
+          {!currentChat && (
+            <p style={{ color: "#999" }}>Select a chat or start a new one.</p>
+          )}
 
           {messages.map((m) => (
             <div key={m._id} style={{ marginBottom: 12 }}>
               <strong>{m.role === "user" ? "You" : "Assistant"}:</strong>
               <p style={{ margin: "4px 0" }}>{m.content}</p>
+              {m.role === "assistant" && (
+                <DocumentSources sources={m.sources} />
+              )}
             </div>
           ))}
 
@@ -115,7 +153,13 @@ export default function Chat() {
         </div>
 
         {currentChat && (
-          <div style={{ display: "flex", padding: 16, borderTop: "1px solid #ddd" }}>
+          <div
+            style={{
+              display: "flex",
+              padding: 16,
+              borderTop: "1px solid #ddd",
+            }}
+          >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -123,7 +167,10 @@ export default function Chat() {
               placeholder="Ask something…"
               style={{ flex: 1, padding: 10, marginRight: 8 }}
             />
-            <button onClick={handleSend} style={{ padding: "10px 20px", cursor: "pointer" }}>
+            <button
+              onClick={handleSend}
+              style={{ padding: "10px 20px", cursor: "pointer" }}
+            >
               ➤
             </button>
           </div>
