@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import DocumentSources from "../components/DocumentSources";
+import { Link } from "react-router-dom";
 
 import {
   fetchChats,
@@ -51,6 +52,7 @@ export default function Chat() {
     if (!input.trim() || !currentChat) return;
     const content = input.trim();
     setInput("");
+    <Link to="/documents">📄 Documents</Link>
     await dispatch(
       sendMessage({
         chatId: currentChat._id,
