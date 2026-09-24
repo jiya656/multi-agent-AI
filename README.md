@@ -240,3 +240,12 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - De-duplicated repeated source lines in `DocumentSources.jsx` (multiple retrieved chunks often share the same file/page) — same fix already applied to the backend's plain-text footer in `documentAgent.js` back on Day 25, now applied consistently on the frontend
 - Removed a temporary debug `console.log` from `Chat.jsx` before committing
 - **This closes the loop that started with the Day 25 routing gap and the Day 27 "no navigation link exists yet" note** — document Q&A with citations now works reliably through the real UI, not just via Postman
+
+### Day 32
+- Found and reconciled a discrepancy between Day 24's README note (threshold 0.5) and the actual shipped code (`MIN_SCORE = 0.2`) — kept 0.2 as the default since it's the value that was actually tested, not the plan's untested 0.70 suggestion
+- Converted `retrieveDocuments.js`'s hardcoded `MIN_SCORE` constant into a `scoreThreshold` parameter (default 0.2), so it's tunable per call instead of one fixed value for the whole app
+- Added candidate-count and per-chunk score logging in `retrieveDocuments.js` for development visibility
+- Confirmed no change needed in `documentAgent.js` — its empty-retrieval fallback (Day 24) already satisfies today's "don't hallucinate on missing context" requirement
+- Ran a direct diagnostic against real resume data with `scoreThreshold: 0` to inspect all candidate chunks regardless of score. Confirmed the correct PROJECTS section is retrieved and its score (0.26) clears the 0.2 threshold — but it ranked below a Skills/Strengths chunk (0.32), likely because 200-char chunk overlap blends adjacent resume sections together. Threshold isn't the problem here; chunk granularity is. Logged as a future chunking-strategy improvement, not fixed today
+- Verified all three scenarios through the real UI (not isolated scripts, matching the Day 27+ testing convention): relevant question on the correct document → grounded answer with sources; irrelevant question on the same document → correctly returns the "couldn't find relevant information" fallback with 0 chunks passing threshold; relevant question on a different selected document → correctly isolated by `documentId`, no cross-document leakage
+- **Not done today:** no actual chunking-strategy change to fix the ranking imperfection found during diagnosis — flagged as a candidate for a future day
