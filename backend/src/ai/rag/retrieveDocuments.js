@@ -1,31 +1,36 @@
 // retrieveDocuments.js
-// Day 24: added documentId filtering — uses qdrantClient.query() (not
-// .search(), which doesn't exist in this client — Day 19/22).
-// Day 32: MIN_SCORE was a hardcoded module constant (0.2 in code, though
-// Day 24's README note said 0.5 — reconciling on the code's actual
-// tested value, since that's what was verified working). Now a
-// scoreThreshold parameter, so it's tunable per call instead of fixed.
-// Also added candidate/pass-count logging for development visibility.
+// Day 24: documentId filtering. Day 32: MIN_SCORE became a tunable
+// scoreThreshold parameter (default 0.2). Still uses qdrantClient.query()
+// (not .search() — Day 19/22).
+// Day 34: cache-aside pattern with Redis. Cache key includes documentId,
+// a hash of the question, and both limit + scoreThreshold — because
+// different threshold/limit values legitimately produce different
+// results for the same question, so they must not share a cache entry.
 
+const crypto = require("crypto");
 const embeddings = require("../models/embeddingModel");
 const qdrantClient = require("../vector/qdrantClient");
+const { redisClient } = require("../../config/redis");
 
 const COLLECTION_NAME = "document_chunks";
 
-const retrieveDocuments = async (
-  question,
-  documentId,
-  limit = 5,
-  scoreThreshold = 0.2 // Day 24's tested value, not the plan's untested 0.70
-) => {
+const retrieveDocuments = async (question, documentId, limit = 5, scoreThreshold = 0.2) => {
+  const questionHash = crypto.createHash("sha256").update(question.trim().toLowerCase()).digest("hex");
+  const cacheKey = `rag:${documentId}:${questionHash}:${limit}:${scoreThreshold}`;
+
+  const cached = await redisClient.get(cacheKey);
+  if (cached) {
+    console.log("[retrieveDocuments] Redis cache hit:", cacheKey);
+    return JSON.parse(cached);
+  }
+  console.log("[retrieveDocuments] Redis cache miss:", cacheKey);
+
   const queryVector = await embeddings.embedQuery(question);
 
   const results = await qdrantClient.query(COLLECTION_NAME, {
     query: queryVector,
     limit,
-    filter: {
-      must: [{ key: "documentId", match: { value: documentId } }]
-    },
+    filter: { must: [{ key: "documentId", match: { value: documentId } }] },
     with_payload: true
   });
 
@@ -38,8 +43,7 @@ const retrieveDocuments = async (
 
   const filteredResults = formatted.filter((result) => result.score >= scoreThreshold);
 
-  console.log(`[retrieveDocuments] ${formatted.length} candidates -> ${filteredResults.length} passed threshold ${scoreThreshold}`);
-  filteredResults.forEach((doc, i) => console.log(`  chunk ${i + 1} score:`, doc.score));
+  await redisClient.set(cacheKey, JSON.stringify(filteredResults), { EX: 300 });
 
   return filteredResults;
 };
