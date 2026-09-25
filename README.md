@@ -255,3 +255,12 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - The one real gap: history was unbounded — every request refetched the entire conversation regardless of length. Added a 10-message cap in `chatController.js` (most recent messages, restored to chronological order)
 - Verified: basic name-recall memory, follow-up-question context resolution, and combined document+memory context all work correctly through the real UI
 - **Not done today (per plan's own note):** conversation history isn't reset or scoped when switching documents mid-conversation — stale document-topic context can leak into a new document's answers. Flagged as a known limitation for a future day, matching the plan's own guidance not to fix this yet
+
+### Day 34
+- Added Redis for fast temporary caching, kept fully separate from MongoDB — MongoDB remains the only persistent store (users, conversations, messages, documents); Redis holds nothing that can't be safely lost
+- Installed the `redis` npm package — had to add `--legacy-peer-deps`, since an existing optional LangChain peer dependency (`@browserbasehq/stagehand`, unused in this project) conflicts with the installed `zod` version; unrelated to Redis itself
+- Created `backend/src/config/redis.js` (single shared client, connect-once-at-startup pattern, matching `qdrantClient.js`'s existing convention)
+- Wired Redis into `server.js`'s startup sequence alongside MongoDB, so both connect before the server starts accepting requests
+- Added cache-aside caching to `retrieveDocuments.js`: cache key built from `documentId` + a SHA-256 hash of the (trimmed, lowercased) question + `limit` + `scoreThreshold` — written against Day 32's actual parameterized threshold, not a hardcoded value. 5-minute TTL
+- Verified end-to-end through the real UI: first ask logged a cache miss followed by normal Qdrant retrieval; identical repeat ask logged a cache hit with retrieval correctly skipped; confirmed the lowercasing/trimming normalization works, since a differently-capitalized repeat of the same question still hit the same cache entry
+- **Not done today:** no cache invalidation when a document is updated or deleted — a stale cached answer could persist for up to 5 minutes after a document changes. Acceptable for now given the short TTL, flagged as a future improvement
