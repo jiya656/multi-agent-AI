@@ -10,6 +10,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const connectDB = require("./config/database");
+const { connectRedis } = require("./config/redis"); 
 const authRoutes = require("./routes/authRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const documentRoutes = require("./routes/documentRoutes");
@@ -49,10 +50,7 @@ app.use("/api/chats", chatRoutes);
 // so router.post("/upload", ...) becomes POST /api/documents/upload.
 app.use("/api/documents", documentRoutes);
 
-// Connect to MongoDB FIRST, and only start accepting requests once that
-// succeeds. If the database isn't reachable, we don't want a backend that
-// looks alive but fails on every real request.
-connectDB().then(() => {
+Promise.all([connectDB(), connectRedis()]).then(() => {
   app.listen(PORT, () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
   });
