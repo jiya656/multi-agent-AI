@@ -8,6 +8,13 @@ const Conversation = require("../models/Conversation");
 const Message = require("../models/Message");
 const { getAIResponse } = require("../services/aiService");
 
+// Day 33: conversation memory was already fully wired through
+// aiService/graph/agents — this just caps how much history gets sent
+// per request. Without a cap, a long conversation would resend every
+// past message on every new turn: more tokens, more latency, more cost,
+// with diminishing benefit from very old turns.
+const HISTORY_LIMIT = 10;
+
 // POST /api/chats
 async function createChat(req, res) {
   try {
@@ -84,10 +91,15 @@ async function addMessage(req, res) {
       content: content.trim(),
     });
 
-    // Pull the FULL history (including the message we just saved) so the
-    // model has context from every earlier turn in this conversation —
-    // this is what makes multi-turn memory work.
-    const history = await Message.find({ conversation: chat._id }).sort({ createdAt: 1 });
+    // Pull the most recent history (including the message we just
+    // saved), capped at HISTORY_LIMIT so long conversations don't grow
+    // the request unboundedly. Sorted descending to get the *latest* N,
+    // then reversed back into chronological order — the model needs
+    // oldest-to-newest, not newest-to-oldest.
+    const history = await Message.find({ conversation: chat._id })
+      .sort({ createdAt: -1 })
+      .limit(HISTORY_LIMIT);
+    history.reverse();
 
     let assistantMessage;
     try {
