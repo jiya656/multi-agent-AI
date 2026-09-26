@@ -264,3 +264,10 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Added cache-aside caching to `retrieveDocuments.js`: cache key built from `documentId` + a SHA-256 hash of the (trimmed, lowercased) question + `limit` + `scoreThreshold` — written against Day 32's actual parameterized threshold, not a hardcoded value. 5-minute TTL
 - Verified end-to-end through the real UI: first ask logged a cache miss followed by normal Qdrant retrieval; identical repeat ask logged a cache hit with retrieval correctly skipped; confirmed the lowercasing/trimming normalization works, since a differently-capitalized repeat of the same question still hit the same cache entry
 - **Not done today:** no cache invalidation when a document is updated or deleted — a stale cached answer could persist for up to 5 minutes after a document changes. Acceptable for now given the short TTL, flagged as a future improvement
+
+### Day 35
+- Added Redis-backed rate limiting on the message-sending route (`POST /:id/messages`), the one route that triggers an actual LLM call — other chat routes (create/list/get/delete) are left unlimited since they're cheap
+- Created `backend/src/middleware/rateLimiter.js`: 20 requests per 60-second window per user, using Redis `INCR` + `EXPIRE`, fail-open if Redis itself is unavailable
+- Corrected the plan's assumption of `req.user._id` — this project's `authMiddleware.js` actually sets `req.user = { id: userId }`, so the limiter keys on `req.user?.id`
+- **Testing status: partial, inconclusive.** A 22-request script against the real endpoint showed requests 1–4 and 6–8 returning `200 OK`, but request 5 returned an unexplained `502` — not a rate-limit response (that would be `429`). The test run was not completed through request 21+, so the actual rate-limit threshold behavior is not yet confirmed
+- **Not done today:** root cause of the `502` on request 5 is still unknown — needs backend log inspection before this can be called verified. Do not merge/deploy this as "tested" until that's resolved
