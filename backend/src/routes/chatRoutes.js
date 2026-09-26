@@ -3,6 +3,7 @@
 const express = require("express");
 const { createChat, getChats, getChat, addMessage, deleteChat } = require("../controllers/chatController");
 const { protect } = require("../middleware/authMiddleware");
+const rateLimiter = require("../middleware/rateLimiter");
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ router.use(protect);
 router.post("/", createChat);
 router.get("/", getChats);
 router.get("/:id", getChat);
-router.post("/:id/messages", addMessage);
+router.post("/:id/messages", rateLimiter, addMessage);
 router.delete("/:id", deleteChat);
 
 module.exports = router;
