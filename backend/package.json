@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "worker": "node worker.js"
   },
   "keywords": [],
   "author": "",
@@ -20,9 +21,11 @@
     "@langchain/textsplitters": "^1.0.1",
     "@qdrant/js-client-rest": "^1.19.0",
     "bcryptjs": "^3.0.3",
+    "bullmq": "^6.3.9",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.3",
     "multer": "^2.4.0",

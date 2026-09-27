@@ -10,8 +10,8 @@ const uploadDocument = async (req, res) => {
     const userId = req.user.id;
     const document = await documentService.processDocument(req.file, userId);
 
-    res.status(201).json({
-      message: "Document uploaded and processed successfully",
+    res.status(202).json({
+      message: "Document uploaded, processing started",
       document: {
         id: document._id,
         fileName: document.fileName,
