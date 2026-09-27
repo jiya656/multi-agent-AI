@@ -269,5 +269,13 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Added Redis-backed rate limiting on the message-sending route (`POST /:id/messages`), the one route that triggers an actual LLM call — other chat routes (create/list/get/delete) are left unlimited since they're cheap
 - Created `backend/src/middleware/rateLimiter.js`: 20 requests per 60-second window per user, using Redis `INCR` + `EXPIRE`, fail-open if Redis itself is unavailable
 - Corrected the plan's assumption of `req.user._id` — this project's `authMiddleware.js` actually sets `req.user = { id: userId }`, so the limiter keys on `req.user?.id`
-- **Testing status: partial, inconclusive.** A 22-request script against the real endpoint showed requests 1–4 and 6–8 returning `200 OK`, but request 5 returned an unexplained `502` — not a rate-limit response (that would be `429`). The test run was not completed through request 21+, so the actual rate-limit threshold behavior is not yet confirmed
-- **Not done today:** root cause of the `502` on request 5 is still unknown — needs backend log inspection before this can be called verified. Do not merge/deploy this as "tested" until that's resolved
+
+### Day 36
+- Moved PDF ingestion (Day 21's pipeline: extract → chunk → embed → store in Qdrant) off the request/response cycle entirely, using BullMQ backed by Redis
+- Corrected the plan's assumption that the `redis` package (used for Day 34/35's caching and rate limiting) is enough for BullMQ — it actually requires `ioredis`, a separate client library, as an internal dependency
+- Found and fixed a real bug during testing: `worker.js` runs as a completely separate Node process from `server.js` and never had its own MongoDB connection — `Document.findByIdAndUpdate()` calls inside the worker were silently buffering and timing out after 10 seconds. Fixed by calling `connectDB()` inside `worker.js` itself
+- `documentService.js` now creates the MongoDB record and enqueues a job instead of running ingestion inline; `documentController.js` returns `202 Accepted` immediately instead of waiting for the full pipeline
+- `documentWorker.js` handles the actual processing, reusing Day 21's `ingestDocument()` unchanged, and updates status to `completed`/`failed` (reusing Day 26's existing schema fields) exactly as the previous synchronous flow did
+- Added retries (3 attempts, exponential backoff) via BullMQ's job options — confirmed working during testing, since an early MongoDB-connection bug caused exactly 3 real retry attempts before failing, matching the configured `attempts: 3`
+- Verified end-to-end with a real upload: fast response in the browser, worker log showing processing → completed, document status updated correctly, and the newly-ingested document immediately usable and correctly answering questions in chat
+- **Not done today:** no UI indication that a document is still processing — selecting a document immediately after upload and before the worker finishes would currently just return no useful retrieval results, silently. Worth a future day's polish, not a blocker
