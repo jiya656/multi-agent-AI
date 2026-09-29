@@ -12,7 +12,8 @@ export const uploadDocumentThunk = createAsyncThunk(
       const formData = new FormData();
       formData.append("file", file);
       const res = await api.post("/documents/upload", formData);
-      return res.data.document;
+      const doc = res.data.document;
+      return { ...doc, _id: doc._id || doc.id }; // upload response uses `id`, the list uses `_id`
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.error || err.response?.data?.message || "Document upload failed"
@@ -54,6 +55,11 @@ const documentSlice = createSlice({
     clearSelectedDocument: (state) => {
       state.selectedDocumentId = null;
     },
+    documentStatusUpdated: (state, action) => {
+      const { documentId, status } = action.payload;
+      const doc = state.documents.find((d) => d._id === documentId);
+      if (doc) doc.status = status;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -84,5 +90,5 @@ const documentSlice = createSlice({
   },
 });
 
-export const { selectDocument, clearSelectedDocument } = documentSlice.actions;
+export const { selectDocument, clearSelectedDocument, documentStatusUpdated } = documentSlice.actions;
 export default documentSlice.reducer;
