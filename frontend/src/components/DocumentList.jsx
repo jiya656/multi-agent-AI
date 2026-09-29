@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { getDocumentsThunk, selectDocument } from "../redux/documentSlice";
+import { getDocumentsThunk, selectDocument, documentStatusUpdated } from "../redux/documentSlice";
+import socket from "../services/socket";
 
 const DocumentList = () => {
   const dispatch = useDispatch();
@@ -13,22 +14,21 @@ const DocumentList = () => {
     dispatch(getDocumentsThunk());
   }, [dispatch]);
 
-  // Day 37: poll while any document is still processing. This effect
-  // re-runs every time `documents` changes (a new fetch replaces the
-  // array reference), so it naturally re-checks after each poll and
-  // simply stops scheduling a new timer once nothing is "processing"
-  // anymore — no separate manual stop condition needed.
+  // Day 38: replaces Day 37's polling. Status now arrives by push.
+  // On (re)connect we refetch once, since events fired while the socket
+  // was disconnected are lost — REST stays the source of truth.
   useEffect(() => {
-    const hasProcessing = documents.some((doc) => doc.status === "processing");
-    if (!hasProcessing) return;
+    const handleStatus = (data) => dispatch(documentStatusUpdated(data));
+    const handleConnect = () => dispatch(getDocumentsThunk());
 
-    const interval = setInterval(() => {
-      dispatch(getDocumentsThunk());
-    }, 2000);
+    socket.on("document:status", handleStatus);
+    socket.on("connect", handleConnect);
 
-    return () => clearInterval(interval);
-  }, [documents, dispatch]);
-
+    return () => {
+      socket.off("document:status", handleStatus);
+      socket.off("connect", handleConnect);
+    };
+  }, [dispatch]);
   if (fetchStatus === "loading" && documents.length === 0) return <p>Loading documents...</p>;
   if (fetchStatus === "failed") return <p>Error: {fetchError}</p>;
 

@@ -6,6 +6,18 @@
 const { Worker } = require("bullmq");
 const Document = require("../../models/Document");
 const ingestDocument = require("../../ai/rag/ingestDocument");
+const { publisher } = require("../../config/redisPubSub");
+
+// Best-effort: if publishing fails, the document itself was still
+// ingested/updated correctly — a failed publish must never get treated
+// as a failed ingestion.
+const publishStatus = async (documentId, status) => {
+  try {
+    await publisher.publish("document-status", JSON.stringify({ documentId, status }));
+  } catch (err) {
+    console.error("[documentWorker] failed to publish status:", err.message);
+  }
+};
 
 const documentWorker = new Worker(
   "document-processing",
@@ -19,6 +31,7 @@ const documentWorker = new Worker(
       await Document.findByIdAndUpdate(documentId, {
         status: "completed"
       });
+      await publishStatus(documentId, "completed");
 
       console.log("[documentWorker] completed:", documentId);
     } catch (error) {
@@ -27,7 +40,14 @@ const documentWorker = new Worker(
         errorMessage: error.message
       });
 
-      throw error; // let BullMQ see the failure too, for retries/logging
+      await Document.findByIdAndUpdate(documentId, {
+        status: "failed",
+        errorMessage: error.message
+      });
+
+      await publishStatus(documentId, "failed");
+
+      throw error;
     }
   },
   { connection: { url: process.env.REDIS_URL } }
