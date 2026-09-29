@@ -14,9 +14,22 @@ const { connectRedis } = require("./config/redis");
 const authRoutes = require("./routes/authRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const documentRoutes = require("./routes/documentRoutes");
+const http = require("http");
+const { Server } = require("socket.io");
+const { subscriber, connectSubscriber } = require("./config/redisPubSub");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "http://localhost:5173" }
+});
+
+io.on("connection", (socket) => {
+  console.log("Client connected:", socket.id);
+  socket.on("disconnect", () => console.log("Client disconnected:", socket.id));
+});
 
 // Lets our React app (running on a different port, localhost:5173)
 // make requests to this server. Without this, the browser blocks it.
@@ -50,8 +63,14 @@ app.use("/api/chats", chatRoutes);
 // so router.post("/upload", ...) becomes POST /api/documents/upload.
 app.use("/api/documents", documentRoutes);
 
-Promise.all([connectDB(), connectRedis()]).then(() => {
-  app.listen(PORT, () => {
+Promise.all([connectDB(), connectRedis(), connectSubscriber()]).then(async () => {
+  await subscriber.subscribe("document-status", (message) => {
+    const data = JSON.parse(message);
+    console.log("[pubsub] document status:", data);
+    io.emit("document:status", data);
+  });
+
+  server.listen(PORT, () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
   });
 });
