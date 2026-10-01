@@ -293,3 +293,13 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Found and fixed a real bug during testing: repeated, unexplained socket connect/disconnect cycles in the backend log. Traced to nodemon's overly broad default watch pattern restarting the server on file changes in `uploads/` — every restart killed every live socket connection. Fixed with a `nodemon.json` ignoring `uploads/*`
 - Kept Day 37's REST `GET /documents` as the reconnect fallback (per the plan's own guidance) — the socket effect refetches once on `connect`, covering any event missed while disconnected, e.g. by the exact bug just described
 - Verified end-to-end: worker → Redis publish → backend subscriber log → live UI update with zero polling requests in the Network tab; confirmed idle connection stability after the nodemon fix
+
+### Day 39 — Authentication + JWT + Security
+- Reviewed this day's plan (user registration, bcrypt hashing, JWT login, auth middleware, ownership-filtered queries) against the actual codebase and found it was already fully implemented — built back in Days 2–3, well before this plan's day numbering
+- Confirmed every item on the plan's own checklist against real code: `authController.js` (register/login, bcrypt, JWT), `authMiddleware.js` (`protect`, `req.user.id`), and ownership filtering already present everywhere (`Document.find({ userId: req.user.id })`, confirmed independently on Day 35/36/38)
+- No new branch, no new commits — nothing to build
+
+### Day 40 — Conversation Rooms / Chat Management
+- Same situation: `Conversation.js`/`Chat.js` and `Message.js` models, full CRUD (`createChat`/`getChats`/`getChat`/`deleteChat`/`addMessage`), and ownership checks on every operation were already implemented, under `chat`/`Conversation` naming rather than the plan's `conversation` naming
+- Found the real implementation exceeds the plan in a couple of places: `getChat` returns 404 (not 403) for another user's conversation specifically to avoid leaking whether it exists at all; `deleteChat` cascade-deletes orphaned messages, which the plan doesn't cover
+- No new branch, no new commits — nothing to build
