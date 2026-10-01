@@ -303,3 +303,9 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Same situation: `Conversation.js`/`Chat.js` and `Message.js` models, full CRUD (`createChat`/`getChats`/`getChat`/`deleteChat`/`addMessage`), and ownership checks on every operation were already implemented, under `chat`/`Conversation` naming rather than the plan's `conversation` naming
 - Found the real implementation exceeds the plan in a couple of places: `getChat` returns 404 (not 403) for another user's conversation specifically to avoid leaking whether it exists at all; `deleteChat` cascade-deletes orphaned messages, which the plan doesn't cover
 - No new branch, no new commits — nothing to build
+
+### Day 41
+- Reviewed the project's existing tool-calling architecture against the plan's Day 41 material and found the core concept already fully implemented: `calculatorTool.js` already used a safe `{a, b, operation}` zod schema with a fixed switch statement — never `eval()` — already ahead of the plan's own recommended fix
+- Found and removed genuinely unused dead code: `toolNode.js`, a `ToolNode`-based graph node built during an earlier architecture (before the Day 13 supervisor redesign), superseded by `codingAgent.js`'s own hand-rolled tool-calling loop but never deleted. Confirmed via grep that nothing referenced it before removing it
+- Verified `researchAgent.js` already handles the "no real search tool yet" situation exactly as the plan recommends: no fake placeholder tool, an honest prompt instruction telling the model to disclose the limitation rather than imply it searched. No code change needed
+- **Not done today:** connecting a real search provider (Tavily/SerpAPI/etc.) for the Research Agent — legitimate future work, but a full day's infrastructure task on its own, not something to improvise as part of today's cleanup
