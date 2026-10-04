@@ -17,6 +17,7 @@ const documentRoutes = require("./routes/documentRoutes");
 const http = require("http");
 const { Server } = require("socket.io");
 const { subscriber, connectSubscriber } = require("./config/redisPubSub");
+const errorMiddleware = require("./middleware/errorMiddleware");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -62,6 +63,19 @@ app.use("/api/chats", chatRoutes);
 // `protect` pattern as chatRoutes.js) and mounted under /api/documents —
 // so router.post("/upload", ...) becomes POST /api/documents/upload.
 app.use("/api/documents", documentRoutes);
+
+// 404 — must come after all real routes, so only truly unmatched
+// requests fall through to here
+app.use((req, res) => {
+  res.status(404).json({ error: "Route not found" });
+});
+
+// Centralized error handler — must be the LAST app.use() in the file.
+// Express identifies this as error-handling middleware specifically
+// because it takes 4 parameters (err, req, res, next); any call to
+// next(err) or an asyncHandler-wrapped controller's rejected promise
+// lands here.
+app.use(errorMiddleware);
 
 Promise.all([connectDB(), connectRedis(), connectSubscriber()]).then(async () => {
   await subscriber.subscribe("document-status", (message) => {
