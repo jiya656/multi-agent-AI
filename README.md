@@ -319,3 +319,8 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Confirmed a real, measurable improvement from the migration: `GET /chats/:id` with a malformed ID now correctly returns `400 "Invalid ID format"` via centralized `CastError` handling, instead of the generic `500` it returned before today
 - Tested all six of the plan's failure scenarios end-to-end: empty content (400), missing JWT (401, already working), invalid ID format (400, the real new behavior), valid-but-nonexistent ID (404), another user's chat with a second real test account (404, confirms cross-user isolation), and a genuine AI provider failure via a temporarily invalid API key (502, with `userMessage` confirmed present)
 - **Not done today:** `documentController.js` wasn't migrated — deliberately scoped out to keep today's change set testable; same migration pattern applies whenever that's tackled
+
+### Day 43
+- Added `docs/testing-checklist.md`, consolidating what has actually been verified against the running app across Days 30–42, rather than treating today as a first testing pass
+- Closed the one genuine open gap: rate limiting was implemented on Day 35 but never confirmed end-to-end due to testing friction at the time. Re-ran the load test today — clean 200s (with expected scattered 502s from the real LLM provider under rapid load, consistent with Day 35's original finding) through request 20, then 429 on requests 21 and 22, confirmed
+- Found two small open items while compiling the checklist, left unfixed today: the rate limiter's response body uses `message`, not the `error` key the rest of the API standardized on during Day 42; and the Socket.IO `failed` status event path has never actually been exercised with a real failing document
