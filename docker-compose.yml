@@ -1,0 +1,61 @@
+services:
+  mongodb:
+    image: mongo:8
+    container_name: multi-ai-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: multi-ai-redis
+    ports:
+      - "6379:6379"
+
+  qdrant:
+    image: qdrant/qdrant
+    container_name: multi-ai-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  backend:
+    build:
+      context: ./backend
+    container_name: multi-ai-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env.docker
+    depends_on:
+      - mongodb
+      - redis
+      - qdrant
+
+  worker:
+    build:
+      context: ./backend
+    container_name: multi-ai-worker
+    env_file:
+      - ./backend/.env.docker
+    command: npm run worker
+    depends_on:
+      - mongodb
+      - redis
+      - qdrant
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: multi-ai-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  mongodb_data:
+  qdrant_data:
