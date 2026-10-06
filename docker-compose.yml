@@ -1,12 +1,4 @@
 services:
-  mongodb:
-    image: mongo:8
-    container_name: multi-ai-mongodb
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-
   redis:
     image: redis:7-alpine
     container_name: multi-ai-redis
@@ -31,7 +23,6 @@ services:
     env_file:
       - ./backend/.env.docker
     depends_on:
-      - mongodb
       - redis
       - qdrant
 
@@ -43,7 +34,6 @@ services:
       - ./backend/.env.docker
     command: npm run worker
     depends_on:
-      - mongodb
       - redis
       - qdrant
 
@@ -57,5 +47,4 @@ services:
       - backend
 
 volumes:
-  mongodb_data:
   qdrant_data:
