@@ -22,6 +22,8 @@ services:
       - "5000:5000"
     env_file:
       - ./backend/.env.docker
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       - redis
       - qdrant
@@ -33,6 +35,8 @@ services:
     env_file:
       - ./backend/.env.docker
     command: npm run worker
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       - redis
       - qdrant
@@ -48,3 +52,4 @@ services:
 
 volumes:
   qdrant_data:
+  uploads_data:
