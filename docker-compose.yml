@@ -1,0 +1,58 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: multi-ai-redis
+    ports:
+      - "6379:6379"
+
+  qdrant:
+    image: qdrant/qdrant
+    container_name: multi-ai-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  backend:
+    build:
+      context: ./backend
+    container_name: multi-ai-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env.docker
+    volumes:
+      - uploads_data:/app/uploads
+      - hf_cache:/app/node_modules/@huggingface/transformers/.cache
+    depends_on:
+      - redis
+      - qdrant
+
+  worker:
+    build:
+      context: ./backend
+    container_name: multi-ai-worker
+    env_file:
+      - ./backend/.env.docker
+    command: npm run worker
+    volumes:
+      - uploads_data:/app/uploads
+      - hf_cache:/app/node_modules/@huggingface/transformers/.cache
+    depends_on:
+      - redis
+      - qdrant
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: multi-ai-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  qdrant_data:
+  uploads_data:
+  hf_cache:

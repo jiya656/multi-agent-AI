@@ -43,6 +43,8 @@ const retrieveDocuments = async (question, documentId, limit = 5, scoreThreshold
 
   const filteredResults = formatted.filter((result) => result.score >= scoreThreshold);
 
+  console.log(`[retrieveDocuments] ${formatted.length} candidates -> ${filteredResults.length} passed threshold ${scoreThreshold}`);
+
   await redisClient.set(cacheKey, JSON.stringify(filteredResults), { EX: 300 });
 
   return filteredResults;
