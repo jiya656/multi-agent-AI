@@ -324,3 +324,15 @@ LangChain, LangGraph, RAG, Qdrant, Redis and Docker.
 - Added `docs/testing-checklist.md`, consolidating what has actually been verified against the running app across Days 30–42, rather than treating today as a first testing pass
 - Closed the one genuine open gap: rate limiting was implemented on Day 35 but never confirmed end-to-end due to testing friction at the time. Re-ran the load test today — clean 200s (with expected scattered 502s from the real LLM provider under rapid load, consistent with Day 35's original finding) through request 20, then 429 on requests 21 and 22, confirmed
 - Found two small open items while compiling the checklist, left unfixed today: the rate limiter's response body uses `message`, not the `error` key the rest of the API standardized on during Day 42; and the Socket.IO `failed` status event path has never actually been exercised with a real failing document
+
+### Day 44 — Dockerize the full stack
+- Containerized the whole app with Docker Compose: `backend`, `worker`, `frontend`, `redis` and `qdrant`. The backend and worker share one image and differ only in the start command (`npm run worker`). MongoDB stays on Atlas.
+- Used `node:22-slim` instead of alpine for the backend image: the local embedding library (onnxruntime) needs glibc, and alpine caused an `ld-linux` error.
+- Fixed a Linux-only bug: file names are case-sensitive inside Docker, so the `User` model import had to match the file name exactly (Windows had hidden this).
+- Inside Docker, services reach each other by service name (`redis://redis:6379`, `http://qdrant:6333`), not `localhost`. Secrets live in `backend/.env.docker`, which is ignored by Git.
+- Added three named volumes: `qdrant_data` (vectors survive restarts), `uploads_data` (PDFs shared between backend and worker), and `hf_cache` (the ~90MB embedding model, shared by backend and worker so it downloads once).
+- Found and fixed a real bug during testing: the first chat question failed with `PROVIDER_ERROR terminated`. The backend container had no cached embedding model, so it tried to download it mid-request and the connection was cut. Persisting the model in `hf_cache` removed the problem.
+- Found a second, separate bug in the same log: a stale MongoDB Atlas socket (`EPIPE`) crashed the AI-failure branch of `addMessage`, because `chat.save()` ran inside the `catch` block. Added `maxIdleTimeMS`, `serverSelectionTimeoutMS` and `heartbeatFrequencyMS` to `mongoose.connect`, and wrapped that `chat.save()` in its own try/catch so a failed side-write can no longer hide the real AI error.
+- Added a `[retrieveDocuments] N candidates -> M passed threshold` log line for retrieval debugging.
+- Verified end-to-end inside Docker: upload → BullMQ worker → Qdrant ingestion → Redis Pub/Sub status event → document routing in the supervisor → Redis cache miss, then cache hit with an identical key for the same question.
+- **Not done today:** the code is copied into the image (not mounted), so code changes need `docker compose up -d --build`. The `failed` Socket.IO status event and the rate limiter's `message` vs `error` response key are still open from Day 43.
