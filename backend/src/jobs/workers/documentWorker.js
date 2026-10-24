@@ -40,11 +40,6 @@ const documentWorker = new Worker(
         errorMessage: error.message
       });
 
-      await Document.findByIdAndUpdate(documentId, {
-        status: "failed",
-        errorMessage: error.message
-      });
-
       await publishStatus(documentId, "failed");
 
       throw error;

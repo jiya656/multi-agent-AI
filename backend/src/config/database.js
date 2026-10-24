@@ -15,7 +15,11 @@ async function connectDB() {
   }
 
   try {
-    await mongoose.connect(uri);
+    await mongoose.connect(uri, {
+    maxIdleTimeMS: 60000,
+    serverSelectionTimeoutMS: 10000,
+    heartbeatFrequencyMS: 10000,
+});
     console.log("✅ MongoDB connected successfully");
   } catch (err) {
     console.error("❌ MongoDB connection failed:", err.message);

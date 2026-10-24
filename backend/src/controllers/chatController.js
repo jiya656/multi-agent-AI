@@ -81,8 +81,12 @@ const addMessage = asyncHandler(async (req, res) => {
   } catch (aiErr) {
     console.error("AI service error:", aiErr.type || "UNKNOWN", aiErr.message);
 
+    try {
     chat.updatedAt = new Date();
     await chat.save();
+  } catch (saveErr) {
+    console.error("chat.save failed:", saveErr.message);
+  }
 
     return res.status(502).json({
       error: "The AI service is temporarily unavailable. Please try again.",

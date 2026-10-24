@@ -24,6 +24,7 @@ services:
       - ./backend/.env.docker
     volumes:
       - uploads_data:/app/uploads
+      - hf_cache:/app/node_modules/@huggingface/transformers/.cache
     depends_on:
       - redis
       - qdrant
@@ -37,6 +38,7 @@ services:
     command: npm run worker
     volumes:
       - uploads_data:/app/uploads
+      - hf_cache:/app/node_modules/@huggingface/transformers/.cache
     depends_on:
       - redis
       - qdrant
@@ -53,3 +55,4 @@ services:
 volumes:
   qdrant_data:
   uploads_data:
+  hf_cache:
