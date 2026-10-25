@@ -53,6 +53,7 @@ export default function Chat() {
 
   const [input, setInput] = useState("");
   const [pendingText, setPendingText] = useState(null); // shown instantly while the AI answers
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
   const lastTextRef = useRef("");
   const bottomRef = useRef(null);
 
@@ -74,7 +75,17 @@ export default function Chat() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
 
+  // Esc closes the mobile drawer
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") setSidebarOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   async function handleNewChat() {
+    setSidebarOpen(false);
     const result = await dispatch(createChat());
     if (createChat.fulfilled.match(result)) navigate(`/chat/${result.payload._id}`);
   }
@@ -108,15 +119,30 @@ export default function Chat() {
         chats={chats}
         activeId={chatIdFromUrl}
         user={user}
+        open={sidebarOpen}
         onNew={handleNewChat}
-        onSelect={(id) => navigate(`/chat/${id}`)}
+        onSelect={(id) => {
+          setSidebarOpen(false);
+          navigate(`/chat/${id}`);
+        }}
         onDelete={handleDelete}
         onLogout={handleLogout}
       />
 
+      {sidebarOpen && <div className="backdrop" onClick={() => setSidebarOpen(false)} />}
+
       <main className="chat-main">
         <header className="chat-topbar">
-          <h2>{currentChat?.title || "MultiAI"}</h2>
+          <div className="topbar-left">
+            <button
+              className="menu-btn"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu"
+            >
+              ☰
+            </button>
+            <h2>{currentChat?.title || "MultiAI"}</h2>
+          </div>
           {selectedDoc && <span className="pill">📄 {selectedDoc.fileName}</span>}
         </header>
 
@@ -133,7 +159,7 @@ export default function Chat() {
             {sending && (
               <>
                 <MessageBubble message={{ _id: "pending", role: "user", content: pendingText }} />
-                                <AgentStatus hasDocument={!!selectedDoc} />
+                <AgentStatus hasDocument={!!selectedDoc} />
               </>
             )}
 

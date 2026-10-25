@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
 
-export default function Sidebar({ chats, activeId, user, onNew, onSelect, onDelete, onLogout }) {
+export default function Sidebar({ chats, activeId, user, open, onNew, onSelect, onDelete, onLogout }) {
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${open ? "open" : ""}`}>
       <div className="sidebar-brand">✦ MultiAI</div>
 
       <button className="btn btn-primary new-chat" onClick={onNew}>

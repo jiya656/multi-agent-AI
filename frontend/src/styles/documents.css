@@ -67,3 +67,16 @@ a.btn { display: inline-block; text-decoration: none; }
 .docs-error {
   border: 1px solid var(--error); border-radius: var(--radius); padding: var(--space-4);
 }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 600px) {
+  .page { padding: var(--space-6) var(--space-4); }
+  .page-header { flex-direction: column; }
+  .dropzone { padding: var(--space-6) var(--space-4); }
+
+  .doc-card { flex-direction: column; align-items: stretch; }
+  .doc-card-side { justify-content: space-between; }
+  .doc-status { align-items: flex-start; }
+
+  .select-bar { flex-direction: column; align-items: stretch; text-align: center; }
+}
