@@ -25,6 +25,10 @@ const ingestDocument = async (filePath, documentId) => {
   const chunks = await textSplitter.splitDocuments(documents);
   console.log(`Created ${chunks.length} chunks`);
 
+    if (chunks.length === 0) {
+    throw new Error("No readable text found in this PDF");
+  }
+
   // 3. Create embeddings
   const texts = chunks.map((chunk) => chunk.pageContent);
   const vectors = await embeddings.embedDocuments(texts);
