@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { logout } from "../redux/authSlice";
-import { Link } from "react-router-dom";
+import "../styles/auth.css";
 
 export default function Dashboard() {
   const dispatch = useDispatch();
@@ -14,25 +14,25 @@ export default function Dashboard() {
   }
 
   return (
-    <div
-      style={{
-        maxWidth: 500,
-        margin: "80px auto",
-        fontFamily: "sans-serif",
-        textAlign: "center",
-      }}
-    >
-      <h1>Welcome to Multi-Agent AI Workspace</h1>
-      <p>You are logged in successfully{user?.name ? `, ${user.name}` : ""}.</p>
-      <p>
-        <Link to="/chat">Go to Chat →</Link>
-      </p>
-      <button
-        onClick={handleLogout}
-        style={{ padding: "8px 20px", marginTop: 20, cursor: "pointer" }}
-      >
-        Logout
-      </button>
+    <div className="auth-page">
+      <div className="auth-card dashboard-card">
+        <div className="auth-brand">✦ MultiAI</div>
+        <h1>Welcome{user?.name ? `, ${user.name}` : ""}</h1>
+        <p className="muted">What would you like to do?</p>
+
+        <div className="dash-actions">
+          <Link to="/chat" className="dash-tile">
+            <strong>💬 Start chatting</strong>
+            <span className="muted">Ask coding, research or document questions</span>
+          </Link>
+          <Link to="/documents" className="dash-tile">
+            <strong>📄 Manage documents</strong>
+            <span className="muted">Upload PDFs to use as a knowledge base</span>
+          </Link>
+        </div>
+
+        <button className="btn" onClick={handleLogout}>Log out</button>
+      </div>
     </div>
   );
 }
