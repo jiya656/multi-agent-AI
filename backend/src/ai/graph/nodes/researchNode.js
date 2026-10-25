@@ -1,7 +1,8 @@
+const { debug } = require("../../../utils/logger");
 const { runResearchAgent } = require("../../agents/researchAgent");
 
 async function researchNode(state) {
-  console.log("[researchNode] handling:", JSON.stringify(state.message));
+  debug("[researchNode] handling:", JSON.stringify(state.message));
   const response = await runResearchAgent(state.message, state.historyMessages || []);
   return { response };
 }

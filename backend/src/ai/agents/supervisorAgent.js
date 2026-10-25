@@ -9,6 +9,7 @@
 // model tried to return something like "banana", the underlying
 // validation would reject it, not our own string-matching code.
 
+const { debug } = require("../../utils/logger");
 const { z } = require("zod");
 const { getChatModel } = require("../models/chatModel");
 const { supervisorPrompt } = require("../prompts/supervisorPrompt");
@@ -28,7 +29,7 @@ async function decideRoute(message, historyMessages = []) {
   const model = getChatModel().withStructuredOutput(routeSchema);
   const result = await model.invoke(messages);
 
-  console.log("[supervisorAgent] decided:", result.next);
+  debug("[supervisorAgent] decided:", result.next);
   return result.next;
 }
 
