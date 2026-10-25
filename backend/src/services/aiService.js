@@ -20,7 +20,7 @@ async function getAIResponse(conversationHistory, documentId) {
   );
 
   try {
-    const { text, sources } = await runGraph(last.content, priorMessages, documentId);
+    const { text, sources, agent } = await runGraph(last.content, priorMessages, documentId);
 
     if (!text) {
       const err = new Error("LLM provider returned an empty response");
@@ -28,7 +28,7 @@ async function getAIResponse(conversationHistory, documentId) {
       throw err;
     }
 
-    return { text, sources };
+    return { text, sources, agent };
   } catch (err) {
     if (err.type) throw err; // already one of our typed errors — pass through as-is
 

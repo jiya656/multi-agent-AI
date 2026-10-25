@@ -49,7 +49,7 @@ async function runGraph(message, historyMessages = [], documentId = null) {
     sources: [],
     documentId
   });
-  return { text: finalState.response, sources: finalState.sources || [] };
+  return { text: finalState.response, sources: finalState.sources || [], agent: finalState.next };
 }
 
 module.exports = { runGraph };
