@@ -14,10 +14,11 @@
 const { ChatGroq } = require("@langchain/groq");
 
 function getChatModel() {
-  return new ChatGroq({
+    return new ChatGroq({
     apiKey: process.env.LLM_API_KEY,
     model: process.env.LLM_MODEL || "openai/gpt-oss-120b",
     temperature: 0.7,
+    maxTokens: 2048,
   });
 }
 

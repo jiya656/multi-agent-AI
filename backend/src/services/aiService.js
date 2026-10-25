@@ -15,7 +15,8 @@ async function getAIResponse(conversationHistory, documentId) {
   // question, everything before it becomes typed LangChain message
   // objects that the graph's callModel node will use as {history}.
   const last = conversationHistory[conversationHistory.length - 1];
-  const priorMessages = conversationHistory.slice(0, -1).map((m) =>
+  const MAX_HISTORY = 10; // keep only the last 10 messages to control token usage
+  const priorMessages = conversationHistory.slice(0, -1).slice(-MAX_HISTORY).map((m) =>
     m.role === "assistant" ? new AIMessage(m.content) : new HumanMessage(m.content)
   );
 
