@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../components/sidebar/Sidebar";
 import MessageBubble from "../components/chat/MessageBubble";
-import TypingIndicator from "../components/chat/TypingIndicator";
+import AgentStatus from "../components/agents/AgentStatus";
 import ChatInput from "../components/chat/ChatInput";
 import { logout } from "../redux/authSlice";
 import { clearSelectedDocument } from "../redux/documentSlice";
@@ -133,9 +133,7 @@ export default function Chat() {
             {sending && (
               <>
                 <MessageBubble message={{ _id: "pending", role: "user", content: pendingText }} />
-                <TypingIndicator
-                  label={selectedDoc ? "Searching your document" : "MultiAI is thinking"}
-                />
+                                <AgentStatus hasDocument={!!selectedDoc} />
               </>
             )}
 

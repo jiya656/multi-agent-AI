@@ -2,6 +2,12 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import DocumentSources from "../DocumentSources";
 
+const AGENT_LABELS = {
+  coding: "Coding Agent",
+  research: "Research Agent",
+  document: "Document Agent",
+};
+
 export default function MessageBubble({ message }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
@@ -23,6 +29,9 @@ export default function MessageBubble({ message }) {
     <div className={`message ${isUser ? "message-user" : "message-ai"}`}>
       <div className="message-meta">
         <span className="message-author">{isUser ? "You" : "✦ MultiAI"}</span>
+        {!isUser && AGENT_LABELS[message.agent] && (
+          <span className="agent-tag">{AGENT_LABELS[message.agent]}</span>
+        )}
         {time && <span className="muted">{time}</span>}
       </div>
 
