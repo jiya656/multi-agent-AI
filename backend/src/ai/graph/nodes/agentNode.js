@@ -6,6 +6,7 @@
 // make that decision, it just asks the question and appends the answer
 // to the message list.
 
+const { debug } = require("../../../utils/logger");
 const { getChatModel } = require("../../models/chatModel");
 const { calculatorTool } = require("../../tools/calculatorTool");
 
@@ -14,9 +15,9 @@ const TOOLS = [calculatorTool];
 async function agentNode(state) {
   const model = getChatModel().bindTools(TOOLS);
 
-  console.log("[agentNode] messages in:", state.messages.length);
+  debug("[agentNode] messages in:", state.messages.length);
   const response = await model.invoke(state.messages);
-  console.log("[agentNode] tool call requested?", Boolean(response.tool_calls?.length));
+  debug("[agentNode] tool call requested?", Boolean(response.tool_calls?.length));
 
   // MessagesAnnotation's default reducer APPENDS returned messages to
   // the existing list, rather than replacing it — unlike the plain

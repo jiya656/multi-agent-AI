@@ -7,6 +7,7 @@
 // different threshold/limit values legitimately produce different
 // results for the same question, so they must not share a cache entry.
 
+const { debug } = require("../../utils/logger");
 const crypto = require("crypto");
 const embeddings = require("../models/embeddingModel");
 const qdrantClient = require("../vector/qdrantClient");
@@ -20,10 +21,10 @@ const retrieveDocuments = async (question, documentId, limit = 5, scoreThreshold
 
   const cached = await redisClient.get(cacheKey);
   if (cached) {
-    console.log("[retrieveDocuments] Redis cache hit:", cacheKey);
+    debug("[retrieveDocuments] Redis cache hit:", cacheKey);
     return JSON.parse(cached);
   }
-  console.log("[retrieveDocuments] Redis cache miss:", cacheKey);
+  debug("[retrieveDocuments] Redis cache miss:", cacheKey);
 
   const queryVector = await embeddings.embedQuery(question);
 
@@ -43,7 +44,7 @@ const retrieveDocuments = async (question, documentId, limit = 5, scoreThreshold
 
   const filteredResults = formatted.filter((result) => result.score >= scoreThreshold);
 
-  console.log(`[retrieveDocuments] ${formatted.length} candidates -> ${filteredResults.length} passed threshold ${scoreThreshold}`);
+  debug(`[retrieveDocuments] ${formatted.length} candidates -> ${filteredResults.length} passed threshold ${scoreThreshold}`);
 
   await redisClient.set(cacheKey, JSON.stringify(filteredResults), { EX: 300 });
 

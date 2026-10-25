@@ -1,0 +1,354 @@
+# Development Log
+
+A day-by-day record of how the project was built over 45 days.
+See the [main README](../README.md) for the project overview.
+
+### Day 1
+- Created React frontend
+- Created Express backend
+- Connected frontend and backend
+- Added Git repository
+
+### Day 2
+- Created MongoDB Atlas cluster
+- Installed and configured Mongoose
+- Connected Express backend to MongoDB
+- Created the first data model: User (name, email, password, createdAt)
+- Added a temporary test endpoint (`POST /api/test/users`) to verify data saves correctly
+
+### Day 3
+- Built on the `feature/auth` branch
+- Installed bcryptjs and jsonwebtoken
+- Implemented `POST /api/auth/register` — hashes password with bcrypt before saving
+- Implemented `POST /api/auth/login` — verifies password, returns a signed JWT
+- Implemented JWT auth middleware (`protect`) — verifies `Authorization: Bearer <token>`
+- Implemented a protected test route: `GET /api/auth/profile`
+- Removed the Day 2 temporary `/api/test/users` route (replaced by real registration)
+
+### Day 4
+- Built on the `feature/frontend-auth` branch
+- Installed Redux Toolkit, React Redux, Axios, React Router
+- Created a centralized Axios instance (`services/api.js`) that auto-attaches the JWT to every request
+- Created `authSlice.js` with `registerUser`/`loginUser` async thunks and auth state (`user`, `token`, `isAuthenticated`, `loading`, `error`)
+- Built Register, Login, and Dashboard pages
+- Built `ProtectedRoute` — redirects unauthenticated users to `/login`
+- Wired up logout, form validation, and backend error display
+
+### Day 5
+- Built on the `feature/chat-system` branch
+- Created `Conversation` and `Message` models (one conversation → many messages)
+- Built chat REST API: `POST/GET /api/chats`, `GET /api/chats/:id`, `POST /api/chats/:id/messages`, `DELETE /api/chats/:id`
+- All chat routes protected by JWT (`authMiddleware`) and scoped by ownership (`user` field checked on every query)
+- Cascade delete: removing a conversation also removes its messages
+- Built `Chat.jsx` — sidebar + message view, `/chat` and `/chat/:id` routes
+- Built `chatSlice.js` — `fetchChats`, `createChat`, `fetchChat`, `sendMessage`, `deleteChat` thunks
+- No LLM yet — messages are stored as-is; AI responses come in Day 6
+
+### Day 6
+- Built on the `feature/llm-integration` branch
+- Added `services/aiService.js` — the only file that talks to the LLM provider (Groq by default, swappable via `.env`)
+- `addMessage` now: saves the user message → fetches full conversation history → calls the AI service → saves the assistant reply → returns both messages
+- Conversation memory verified: multi-turn context is correctly passed to the model
+- AI failures (bad key, rate limit, network error) return a clean `502` with a generic message — technical details stay in server logs only, and the user's message is preserved even if the AI call fails
+- Frontend: `sendMessage` now handles the `{userMessage, assistantMessage}` response shape, shows an "AI is thinking…" indicator, and still displays the user's message even on AI failure
+
+### Day 7
+- Built on the `feature/langchain-integration` branch
+- Installed `@langchain/core` and `@langchain/groq`
+- Added `ai/models/chatModel.js` — configures and returns the LangChain chat model, isolated from the rest of the app
+- Added `ai/prompts/chatPrompt.js` — reusable `ChatPromptTemplate` with `{history}` and `{question}` slots
+- Rewrote `aiService.js` internals to use a LangChain chain (`prompt.pipe(model)`) instead of a raw fetch call — but kept its external interface identical, so `chatController.js` needed zero changes
+- Still a single LLM call — no agents, no tools, no RAG yet
+
+### Day 8
+- Built on the `feature/ai-tools` branch
+- Installed `zod` (for tool input schema validation)
+- Added `ai/tools/calculatorTool.js` — first AI tool: name, description, zod schema, and a safe (no `eval()`) implementation
+- Rewrote `aiService.js`'s core logic into a full tool-calling loop: bind tools to the model → invoke → if the model requests a tool, execute it for real and feed the result back → invoke again for the final answer
+- `chatController.js` still required zero changes
+- Not building multiple agents yet — this is the foundation Day 9+ will build on
+
+### Day 9
+- Built on the `feature/first-ai-agent` branch
+- Added `ai/agents/agent.js` — owns the chat model + tools + the full "should I use a tool?" decision loop
+- Extracted the tool-calling loop out of `aiService.js` into `agent.js`; `aiService.js` shrank to a thin coordinator
+- `chatController.js` still required zero changes
+- Clear responsibility split: `chatController.js` = HTTP logic, `aiService.js` = AI coordination, `agent.js` = agent decision-making, `calculatorTool.js` = tool capability, `chatModel.js` = LLM config
+
+### Day 10
+- Built on the `feature/langgraph-basics` branch
+- Installed `@langchain/langgraph`
+- Added `ai/graph/graph.js` — first LangGraph workflow: state (`message`, `historyMessages`, `response`), two nodes (`processMessage`, `callModel`), edges `START → processMessage → callModel → END`
+- `callModel` reuses the existing `runAgent()` (Day 9) internally, so tool-calling and conversation memory are preserved — the graph adds LangGraph's structure without losing existing capability
+- `aiService.js` now calls `runGraph()` instead of the agent directly; `chatController.js` still required zero changes
+- Verified: state genuinely flows between nodes (tested via a trimmed message reaching the second node correctly), tool-calling still works through the graph, conversation memory still works through the graph
+
+### Day 11
+- Built on the `feature/langgraph-routing` branch
+- Added `category` to graph state
+- Added `ai/graph/router.js` — pure routing decision function
+- Rewrote `ai/graph/graph.js`: added `classifyMessage` (keyword-based, deliberately simple), `codingNode`, `generalNode`, and a conditional edge routing between them based on category
+- `aiService.js` still required zero changes
+- Verified: all 4 plan test cases route correctly (coding vs general), tool-calling and conversation memory still work regardless of which path is taken
+- Today's classifier is simple by design — a real LLM/supervisor-based classification comes in a later day
+
+### Day 12
+- Built on the `feature/langgraph-agent` branch
+- Added `ai/graph/nodes/agentNode.js` — calls the LLM (bound with tools), doesn't decide anything itself
+- Added `ai/graph/nodes/toolNode.js` — LangGraph's prebuilt `ToolNode`, executes real tool calls
+- Rewrote `graph.js`: the agent is now itself a LangGraph node, with a real loop (`agent → tools → agent`) via `toolsCondition` and a `tools → agent` edge, continuing until no more tool calls are pending
+- Replaces Day 11's classify/router graph at the top level — that router was explicitly a disposable teaching scaffold; today's agent+tool loop is the real reusable pattern Day 13's specialized agents will be built from
+- `aiService.js` still required zero changes
+- Verified with exact model-call counts: no-tool question = 1 call, single calculation = 2 calls (looped once), two sequential calculations = 3 calls (looped twice) — confirms the loop is real and dynamic, not hardcoded to one iteration
+
+### Day 13
+- Built on the `feature/multi-agent-architecture` branch
+- Added 4 specialized prompts: supervisor, coding, research, document
+- Added 4 agents: `supervisorAgent.js` (LLM-powered, schema-constrained routing via zod), `codingAgent.js` (reuses tool-calling from Days 8-9), `researchAgent.js` and `documentAgent.js` (honest placeholders — no search/RAG yet, they say so rather than hallucinating)
+- Added `state.js` (`next` field), rewrote `router.js` (trivial — real decision already made by the supervisor), 4 new nodes
+- Rewrote `graph.js`: START → supervisorNode → conditional routing → coding/research/document → END. The "end" case is handled directly inside supervisorNode so it produces a real response, not an empty one
+- `aiService.js` still required zero changes — 8th consecutive day
+- Verified: all 4 plan test cases route correctly with real responses, calculator tool still works inside codingNode
+- No return-to-supervisor loop yet (multi-step requests) — deliberately simplified per the plan, coming later
+
+### Day 14
+- Confirmed Day 13's supervisor architecture already satisfies Day 14's requirements — no new source files needed
+- Verified 3 additional test cases with less obvious phrasing (e.g. "reverse a linked list" with no literal word "code") — supervisor correctly reasoned by meaning, not keyword matching
+
+### Day 15
+- Confirmed `codingAgent.js` and `codingNode.js` already satisfy Day 15's requirements from Day 13 — and are more capable than the plan's simpler version (ours already includes tool-calling + conversation memory, which today's plan's version doesn't)
+- Upgraded `codingPrompt.js`'s system instructions: from a one-line description to 8 explicit numbered responsibilities (clean code, debugging, algorithm explanations, complexity analysis, "do not invent information," beginner-friendly explanations)
+- Verified 4 test cases: binary search explanation, segfault debugging, a specific LeetCode problem — all correctly routed to `coding`; a stock market question correctly routed to `research`, not `coding`
+
+### Day 16
+- Confirmed `researchAgent.js` and `researchNode.js` already satisfy Day 16's requirements from Day 13
+- Upgraded `researchPrompt.js`'s system instructions to the detailed 9-point responsibilities from today's plan (distinguish facts from assumptions, don't invent sources, organize with headings/bullets when useful) — kept the existing honesty clause about not having live web search yet
+- Verified: microservices, database comparison, and "latest AI developments" all correctly route to `research`; a coding question still correctly routes to `coding`, confirming no regression
+- Important interview point (per the plan): the Research Agent does NOT actually search the web yet — it answers from the model's existing knowledge and is explicitly instructed to be honest about that limitation, not imply real-time search capability it doesn't have
+
+### Day 17
+- Confirmed `documentAgent.js` and `documentNode.js` already satisfy Day 17's requirements from Day 13
+- Upgraded `documentPrompt.js`'s system instructions to the detailed 8-point responsibilities from today's plan, while carefully preserving Day 13's critical "RAG isn't connected yet, be honest" clause — this is the exact instruction that prevents hallucinated document summaries
+- Caught and fixed my own testing mistake: initially tested against the OLD prompt content because I forgot to actually apply the file update before running verification — re-tested correctly afterward
+- Verified all 3 routes: coding, research, and document (with correct honest disclosure) all work correctly
+- Now have a complete 3-agent skeleton: coding, research, document — each with its own prompt, agent, and node file
+
+### Day 19
+- Set up Qdrant locally via Docker (ports 6333 HTTP / 6334 gRPC)
+- Installed `@qdrant/js-client-rest` and added `QDRANT_URL` to `.env` / `.env.example`
+- Created `ai/vector/qdrantClient.js` — single shared Qdrant connection (loads dotenv itself since these scripts run standalone, not through server.js)
+- Created `ai/vector/createCollection.js` — creates the `documents` collection (demo 4-dim vectors, Cosine distance)
+- Created `ai/vector/insertVector.js` and `searchVector.js` — verified insert + similarity search work end-to-end with a manual demo vector
+- Confirmed via Qdrant dashboard that the collection and point exist
+- Real embedding dimension will replace the demo `size: 4` once an embedding model is chosen (Day 20)
+
+### Day 20
+- Discovered mid-implementation that `@langchain/community` was officially sunset (archived May 2026) — pivoted to calling `@huggingface/transformers` directly instead of through LangChain's wrapper
+- Upgraded `@langchain/core` (→ 1.2.9) and `@langchain/groq` (→ 1.3.1) together to resolve a peer dependency requirement — verified via Postman that the existing chat/agent flow still works correctly after the upgrade
+- Chose local, free embeddings (Xenova/all-MiniLM-L6-v2 via Hugging Face Transformers.js) instead of OpenAI, since Groq has no embedding models of its own
+- Created `ai/models/embeddingModel.js` — local embedding model, no API key, downloads weights once (~90MB) and caches them; added progress logging since the first run has no visible output otherwise
+- Created `ai/vector/createDocumentCollection.js` — real `document_chunks` collection sized to 384 dimensions
+- Created `ai/rag/textSplitter.js` — chunks text with 1000-char chunks, 200-char overlap
+- Created `ai/rag/testRag.js` — verified end-to-end: real text → real embeddings → Qdrant storage → similarity search → correctly retrieved the supervised-learning chunk for a real question (top score 0.85 vs 0.57 for the next closest)
+- Not yet done: actual PDF upload/ingestion (Day 21+)
+
+### Day 21
+- Corrected a mistake from Day 20's notes: `@langchain/community` is NOT deprecated — verified via npm registry directly. Previous confusion was conflating it with a different, similarly-named repo
+- Installed `@langchain/community` + `pdf-parse` for real PDF text extraction — installed cleanly since `@langchain/core` was already upgraded to 1.x on Day 20
+- Created `ai/rag/pdfLoader.js` — extracts text + metadata (page numbers, source) from PDFs
+- Created `ai/rag/ingestDocument.js` — full ingestion pipeline: PDF → chunks → local embeddings → Qdrant, reusing Day 20's `embeddingModel.js` and `document_chunks` collection (384-dim) unchanged
+- Verified end-to-end with a real PDF via `testIngestion.js`
+- Known limitation flagged: sequential `id: index + 1` will collide across multiple documents — needs UUIDs before this becomes multi-document safe
+
+### Day 22
+- Created `ai/rag/retrieveDocuments.js` — embeds a question via `embedQuery()`, searches `document_chunks` via Qdrant, returns clean `{ text, score, documentId, metadata }` results
+- Corrected for the same `search()` → `query()` API change discovered on Day 19 — the plan's original code would have failed identically
+- Verified via `testRetrieval.js` against the collection's current mixed contents (Day 20 demo leftovers + Day 21 resume chunks)
+- Understood: embedQuery() vs embedDocuments(), why similarity score isn't "correctness," why retrieving too many chunks can hurt rather than help, why document-level filtering (Qdrant payload filtering) will eventually be needed once multiple documents coexist
+
+### Day 23
+- Corrected the plan's assumed `documentAgent.js` structure to match the actual Day 17 implementation (`runDocumentAgent(message, historyMessages)` using `documentPrompt.formatMessages()`, not a raw string prompt)
+- Critical update: removed/replaced the Day 13/17 "RAG isn't connected yet" honesty clause in `documentPrompt.js` — that instruction is now false and would have contradicted real retrieved context. Replaced with a narrower honesty clause: only claim what's in the retrieved excerpts, say so if the context is insufficient
+- Added a `{context}` placeholder to `documentPrompt.js`'s user message template
+- Connected `retrieveDocuments.js` (already fixed for `search()`→`query()` on Day 22) into `documentAgent.js` — retrieves 3 chunks, formats them as numbered sources, passes them as context
+- Verified end-to-end via `testDocumentAgent.js`: real question → real retrieval from resume → real grounded answer, no more "coming soon" placeholder response
+- Known limitations carried forward: no score threshold (irrelevant chunks would still get passed to the LLM), no document-level filtering (searches all chunks regardless of which document), ID collisions still possible with multiple documents
+
+### Day 24
+- Added `documentId` to `GraphState` (matching the project's actual singular `message` state shape, not the plan's generic `messages` array assumption)
+- Updated `retrieveDocuments.js` with Qdrant metadata filtering (`filter.must[].match`) restricting search to a specific `documentId`, plus a score threshold (0.5, to be tuned) dropping low-relevance results
+- Updated `documentAgent.js` to accept and pass through `documentId`, and to honestly respond "I couldn't find relevant information..." when nothing passes the threshold, instead of guessing
+- Updated `documentNode.js` to pass `state.documentId` through — the one node that DID need a change this time, unlike Day 23
+- Verified with two separately-ingested documents: correct document returns a real grounded answer, wrong document correctly returns nothing found
+- Not yet done: userId-based filtering / multi-user document ownership (flagged in the plan as a future security concern once JWT-based auth connects to document access)
+
+### Day 25
+- Implemented the full structured `{ answer, sources }` return from `documentAgent.js`, propagated end-to-end: `documentNode.js` → `graph.js` (`runGraph` now returns `{ text, sources }`) → `aiService.js` (`getAIResponse` returns `{ text, sources }`) → `chatController.js` → `Message` schema (new `sources` field)
+- Added `sources` to `GraphState` with a safe empty-array default, so coding/research agents (which never set it) don't break
+- Added `formatContext.js` and `formatSources.js`, adapted to this project's actual metadata shape (`metadata.source` path + `metadata.loc.pageNumber`)
+- Verified via Postman that coding/research agents still work correctly and return `sources: []`, and that document questions now return both a real answer and populated source citations in the API response
+- This was a larger, coordinated change across 7 files rather than an isolated `documentAgent.js` edit — necessary because the project's existing string-only contract (aiService → chatController → Message.content) had no room for a sources field without updating the whole chain together
+
+### Day 26
+- Added `Document.js` model (MongoDB) tracking uploaded PDFs — filename, path, processing status, owner
+- Added Multer-based `uploadMiddleware.js` (PDF-only, 10MB limit)
+- Added `documentService.js` coordinating MongoDB record creation + `ingestDocument.js` (unchanged since Day 21 — already accepted `(filePath, documentId)`)
+- Added `documentController.js` + `documentRoutes.js`, protected with the same `protect` JWT middleware as `chatRoutes.js` — `userId` comes from `req.user.id` (verified token), never trusted from the request body, per Day 24's security notes
+- Mounted `/api/documents` in `server.js`
+- Verified end-to-end via Postman: real PDF upload → MongoDB record with `status: completed` → matching chunks in Qdrant with the correct `documentId`
+- **Known gap, NOT solved today:** chat messages still have no way to specify which `documentId` to query, and the Supervisor still has no routing logic connecting a question to the Document Agent (confirmed broken via Postman on Day 25). Today only builds the upload/ingestion half — the chat-side wiring is still open
+
+### Day 27
+- Adapted to actual frontend conventions: no separate `documentApi.js` service file (chatSlice.js already established the pattern of calling the shared `api` axios instance directly inside thunks) — `documentSlice.js` follows that exact style
+- Confirmed no new npm installs needed — axios, Redux Toolkit, react-router-dom, cors all already present since earlier days
+- Upload now correctly authenticated: the shared `api.js` interceptor auto-attaches the JWT, satisfying Day 26's `protect` middleware requirement (the original plan's plain `fetch()` would have failed with 401)
+- Added `/documents` route (protected, matching the `/chat` pattern) instead of an unrouted floating page
+- Verified end-to-end through the real UI: login → select PDF → upload → confirmed in React, MongoDB, and Qdrant
+
+### Day 28
+- Added `GET /api/documents` — protected, filters strictly by `req.user.id` (no unauthenticated fallback, since the route requires JWT via `router.use(protect)`)
+- Skipped a separate `documentApi.js` file again, matching Day 27's convention — `getDocumentsThunk` calls the shared `api` instance directly inside `documentSlice.js`
+- Added `selectedDocumentId` state and `selectDocument`/`clearSelectedDocument` reducers
+- Added `DocumentList.jsx`, updated `Documents.jsx` to show it alongside the upload form
+- Found and diagnosed a real issue while testing: an early GET request returned an empty array — traced it to querying with a JWT from a different user account than the one that owned the existing uploaded documents, since `GET /api/documents` correctly filters by `userId`. Re-tested consistently under one account afterward
+- Also surfaced two genuine past upload failures (`status: "failed"`, `errorMessage: "fetch failed"`) sitting in MongoDB from earlier testing — confirmed this is Day 26's error-handling working as designed (recording failure state rather than losing it), most likely caused by Qdrant not running at the time of those attempts
+- Verified: documents persist across a page refresh (proving the real GET flow, not local state), and selecting between multiple documents correctly updates `selectedDocumentId` each time
+- Did not touch the Supervisor or chat request shape today — confirmed as Day 29 (thread documentId into chat) and Day 30 (Supervisor routing) per the plan's explicit sequence
+
+### Day 29
+- Threaded `documentId` from a chat request into graph state — required changes in only 3 backend files (`chatController.js`, `aiService.js`, `graph.js`), since `state.js`, `documentNode.js`, and `documentAgent.js` already had the necessary fields/logic from Day 24/25 but never actually received a value
+- The real gap was a single missing key in `graph.js`'s `runGraph()` — `documentId` was never included in the object passed to `graph.invoke()`, despite `state.js` already defining the field
+- Updated `chatSlice.js`'s `sendMessage` thunk and `Chat.jsx` to read `selectedDocumentId` from Redux and include it in the request body
+- Note: while reconstructing `chatController.js` for today's edit, found that a locally-held reference copy of the file predated Day 25's `{ text, sources }` changes — reconstructed the file combining Day 25's existing changes with today's `documentId` addition rather than risk silently reverting Day 25's work
+- **Not fully verified end-to-end today** — the full Postman/browser test chain (Section 7 of the plan) was skipped; the actual data flow through `graph.invoke()` should be confirmed before relying on it in Day 30
+- **Still expected, per the plan:** even with documentId threading complete, the Supervisor still doesn't route document questions to the Document Agent — that remains Day 30's task
+
+### Day 30
+- Added document-aware routing to `supervisorNode.js`: if `state.documentId` is present, route directly to the Document Agent, bypassing the Supervisor LLM's decision entirely — the application already has certain knowledge of intent once a document is explicitly selected
+- Confirmed no changes were needed to `router.js`, `documentAgent.js`, `documentNode.js`, or `retrieveDocuments.js` — all were already correctly wired for `documentId` since Day 24/25/29; today's gap was purely at the routing-decision level
+- Verified all three cases: no document → normal LLM-based routing (coding/research), document selected + relevant question → direct routing to Document Agent with correct retrieval, document-relevant question with no document selected → falls back to normal routing (regression confirmed intact)
+- **This closes the routing gap first found on Day 25** — a real chat message with a selected document now reliably reaches the Document Agent, rather than depending on the Supervisor LLM to infer document-relatedness from phrasing alone
+
+### Day 31
+- Debugged a real, multi-hour issue: after selecting a document and asking a question, answers kept coming from the Research Agent instead of the Document Agent — despite Day 29/30's `documentId` threading and Supervisor short-circuit both being correct
+- Root cause traced to a missing feature, not a bug: no in-app navigation existed between `/documents` and `/chat` (flagged back on Day 27 but never fixed), so switching pages meant typing the URL directly — which triggers a full browser reload and wipes Redux's in-memory `selectedDocumentId` back to `null`. Every backend piece (routing, retrieval, sources) had been correct the entire time
+- Added `<Link>` navigation between `Documents.jsx` and `Chat.jsx` (React Router client-side navigation, which does not reload the page or clear Redux state) — closes the Day 27 gap
+- Verified end-to-end with a real document: question correctly routed to the Document Agent, retrieval returned accurate content, and — Day 31's actual original goal — sources now render under the assistant's answer in the UI
+- Added `DocumentSources.jsx`, wired into `Chat.jsx`'s message list (renders under each assistant message using the `sources` field already returned by the backend since Day 25)
+- De-duplicated repeated source lines in `DocumentSources.jsx` (multiple retrieved chunks often share the same file/page) — same fix already applied to the backend's plain-text footer in `documentAgent.js` back on Day 25, now applied consistently on the frontend
+- Removed a temporary debug `console.log` from `Chat.jsx` before committing
+- **This closes the loop that started with the Day 25 routing gap and the Day 27 "no navigation link exists yet" note** — document Q&A with citations now works reliably through the real UI, not just via Postman
+
+### Day 32
+- Found and reconciled a discrepancy between Day 24's README note (threshold 0.5) and the actual shipped code (`MIN_SCORE = 0.2`) — kept 0.2 as the default since it's the value that was actually tested, not the plan's untested 0.70 suggestion
+- Converted `retrieveDocuments.js`'s hardcoded `MIN_SCORE` constant into a `scoreThreshold` parameter (default 0.2), so it's tunable per call instead of one fixed value for the whole app
+- Added candidate-count and per-chunk score logging in `retrieveDocuments.js` for development visibility
+- Confirmed no change needed in `documentAgent.js` — its empty-retrieval fallback (Day 24) already satisfies today's "don't hallucinate on missing context" requirement
+- Ran a direct diagnostic against real resume data with `scoreThreshold: 0` to inspect all candidate chunks regardless of score. Confirmed the correct PROJECTS section is retrieved and its score (0.26) clears the 0.2 threshold — but it ranked below a Skills/Strengths chunk (0.32), likely because 200-char chunk overlap blends adjacent resume sections together. Threshold isn't the problem here; chunk granularity is. Logged as a future chunking-strategy improvement, not fixed today
+- Verified all three scenarios through the real UI (not isolated scripts, matching the Day 27+ testing convention): relevant question on the correct document → grounded answer with sources; irrelevant question on the same document → correctly returns the "couldn't find relevant information" fallback with 0 chunks passing threshold; relevant question on a different selected document → correctly isolated by `documentId`, no cross-document leakage
+- **Not done today:** no actual chunking-strategy change to fix the ranking imperfection found during diagnosis — flagged as a candidate for a future day
+
+### Day 33
+- Discovered conversation memory was already substantially implemented in earlier days: `chatController.js` already retrieved full message history from MongoDB, `aiService.js` already split it into current-message + typed LangChain history objects with no duplication bug, and all three agents already inject `historyMessages` via `ChatPromptTemplate`'s `{history}` placeholder — a cleaner pattern than manual string-joining
+- The one real gap: history was unbounded — every request refetched the entire conversation regardless of length. Added a 10-message cap in `chatController.js` (most recent messages, restored to chronological order)
+- Verified: basic name-recall memory, follow-up-question context resolution, and combined document+memory context all work correctly through the real UI
+- **Not done today (per plan's own note):** conversation history isn't reset or scoped when switching documents mid-conversation — stale document-topic context can leak into a new document's answers. Flagged as a known limitation for a future day, matching the plan's own guidance not to fix this yet
+
+### Day 34
+- Added Redis for fast temporary caching, kept fully separate from MongoDB — MongoDB remains the only persistent store (users, conversations, messages, documents); Redis holds nothing that can't be safely lost
+- Installed the `redis` npm package — had to add `--legacy-peer-deps`, since an existing optional LangChain peer dependency (`@browserbasehq/stagehand`, unused in this project) conflicts with the installed `zod` version; unrelated to Redis itself
+- Created `backend/src/config/redis.js` (single shared client, connect-once-at-startup pattern, matching `qdrantClient.js`'s existing convention)
+- Wired Redis into `server.js`'s startup sequence alongside MongoDB, so both connect before the server starts accepting requests
+- Added cache-aside caching to `retrieveDocuments.js`: cache key built from `documentId` + a SHA-256 hash of the (trimmed, lowercased) question + `limit` + `scoreThreshold` — written against Day 32's actual parameterized threshold, not a hardcoded value. 5-minute TTL
+- Verified end-to-end through the real UI: first ask logged a cache miss followed by normal Qdrant retrieval; identical repeat ask logged a cache hit with retrieval correctly skipped; confirmed the lowercasing/trimming normalization works, since a differently-capitalized repeat of the same question still hit the same cache entry
+- **Not done today:** no cache invalidation when a document is updated or deleted — a stale cached answer could persist for up to 5 minutes after a document changes. Acceptable for now given the short TTL, flagged as a future improvement
+
+### Day 35
+- Added Redis-backed rate limiting on the message-sending route (`POST /:id/messages`), the one route that triggers an actual LLM call — other chat routes (create/list/get/delete) are left unlimited since they're cheap
+- Created `backend/src/middleware/rateLimiter.js`: 20 requests per 60-second window per user, using Redis `INCR` + `EXPIRE`, fail-open if Redis itself is unavailable
+- Corrected the plan's assumption of `req.user._id` — this project's `authMiddleware.js` actually sets `req.user = { id: userId }`, so the limiter keys on `req.user?.id`
+
+### Day 36
+- Moved PDF ingestion (Day 21's pipeline: extract → chunk → embed → store in Qdrant) off the request/response cycle entirely, using BullMQ backed by Redis
+- Corrected the plan's assumption that the `redis` package (used for Day 34/35's caching and rate limiting) is enough for BullMQ — it actually requires `ioredis`, a separate client library, as an internal dependency
+- Found and fixed a real bug during testing: `worker.js` runs as a completely separate Node process from `server.js` and never had its own MongoDB connection — `Document.findByIdAndUpdate()` calls inside the worker were silently buffering and timing out after 10 seconds. Fixed by calling `connectDB()` inside `worker.js` itself
+- `documentService.js` now creates the MongoDB record and enqueues a job instead of running ingestion inline; `documentController.js` returns `202 Accepted` immediately instead of waiting for the full pipeline
+- `documentWorker.js` handles the actual processing, reusing Day 21's `ingestDocument()` unchanged, and updates status to `completed`/`failed` (reusing Day 26's existing schema fields) exactly as the previous synchronous flow did
+- Added retries (3 attempts, exponential backoff) via BullMQ's job options — confirmed working during testing, since an early MongoDB-connection bug caused exactly 3 real retry attempts before failing, matching the configured `attempts: 3`
+- Verified end-to-end with a real upload: fast response in the browser, worker log showing processing → completed, document status updated correctly, and the newly-ingested document immediately usable and correctly answering questions in chat
+- **Not done today:** no UI indication that a document is still processing — selecting a document immediately after upload and before the worker finishes would currently just return no useful retrieval results, silently. Worth a future day's polish, not a blocker
+
+### Day 37
+- Found that a separate `GET /documents/:id` endpoint, a new frontend API file, and new Redux state weren't needed: `getDocuments` already returns every document's `status`, and `DocumentList.jsx` already renders it — so today's work is purely frontend polling on top of the existing list endpoint, not new backend surface area
+- Added a self-restarting polling effect in `DocumentList.jsx`: while any document's status is `"processing"`, refetch the document list every 2 seconds; the effect naturally stops scheduling itself once nothing is left processing, since it re-evaluates on every fetch rather than running on a single persistent timer
+- Added friendlier status labels (⏳ Processing / ✅ Ready / ❌ Failed) and disabled the Select button until a document reaches `"completed"` — directly closes the known gap flagged in Day 36's README (selecting a document before ingestion finishes silently returned nothing useful)
+- Verified through the real UI: uploaded document showed "Processing..." with Select disabled, Network tab showed repeated `GET /api/documents` calls roughly every 2 seconds, status flipped to "Ready" automatically once the Day 36 worker completed (no manual refresh), and polling requests stopped firing afterward
+
+### Day 38
+- Replaced Day 37's polling with real-time push updates via Socket.IO, since the worker (a separate process) can't call `io.emit()` directly — used Redis Pub/Sub as the bridge: worker publishes a `document-status` message, the API server subscribes and forwards it to connected clients
+- Corrected several plan assumptions against the real codebase: Day 34's `Promise.all([connectDB(), connectRedis()])` startup block (not a plain `app.listen`), Redux state at `../redux/documentSlice` with no `selectedDocument` field (Day 37 didn't need one), and the upload response's `id` vs the list's `_id` field mismatch — the latter would have silently broken status matching for a just-uploaded document if left uncaught
+- Made worker-side publishing best-effort (its own try/catch) so a Redis publish failure can never mis-mark a successfully ingested document as failed
+- Found and fixed a real bug during testing: repeated, unexplained socket connect/disconnect cycles in the backend log. Traced to nodemon's overly broad default watch pattern restarting the server on file changes in `uploads/` — every restart killed every live socket connection. Fixed with a `nodemon.json` ignoring `uploads/*`
+- Kept Day 37's REST `GET /documents` as the reconnect fallback (per the plan's own guidance) — the socket effect refetches once on `connect`, covering any event missed while disconnected, e.g. by the exact bug just described
+- Verified end-to-end: worker → Redis publish → backend subscriber log → live UI update with zero polling requests in the Network tab; confirmed idle connection stability after the nodemon fix
+
+### Day 39 — Authentication + JWT + Security
+- Reviewed this day's plan (user registration, bcrypt hashing, JWT login, auth middleware, ownership-filtered queries) against the actual codebase and found it was already fully implemented — built back in Days 2–3, well before this plan's day numbering
+- Confirmed every item on the plan's own checklist against real code: `authController.js` (register/login, bcrypt, JWT), `authMiddleware.js` (`protect`, `req.user.id`), and ownership filtering already present everywhere (`Document.find({ userId: req.user.id })`, confirmed independently on Day 35/36/38)
+- No new branch, no new commits — nothing to build
+
+### Day 40 — Conversation Rooms / Chat Management
+- Same situation: `Conversation.js`/`Chat.js` and `Message.js` models, full CRUD (`createChat`/`getChats`/`getChat`/`deleteChat`/`addMessage`), and ownership checks on every operation were already implemented, under `chat`/`Conversation` naming rather than the plan's `conversation` naming
+- Found the real implementation exceeds the plan in a couple of places: `getChat` returns 404 (not 403) for another user's conversation specifically to avoid leaking whether it exists at all; `deleteChat` cascade-deletes orphaned messages, which the plan doesn't cover
+- No new branch, no new commits — nothing to build
+
+### Day 41
+- Reviewed the project's existing tool-calling architecture against the plan's Day 41 material and found the core concept already fully implemented: `calculatorTool.js` already used a safe `{a, b, operation}` zod schema with a fixed switch statement — never `eval()` — already ahead of the plan's own recommended fix
+- Found and removed genuinely unused dead code: `toolNode.js`, a `ToolNode`-based graph node built during an earlier architecture (before the Day 13 supervisor redesign), superseded by `codingAgent.js`'s own hand-rolled tool-calling loop but never deleted. Confirmed via grep that nothing referenced it before removing it
+- Verified `researchAgent.js` already handles the "no real search tool yet" situation exactly as the plan recommends: no fake placeholder tool, an honest prompt instruction telling the model to disclose the limitation rather than imply it searched. No code change needed
+- **Not done today:** connecting a real search provider (Tavily/SerpAPI/etc.) for the Research Agent — legitimate future work, but a full day's infrastructure task on its own, not something to improvise as part of today's cleanup
+
+### Day 42
+- Found a critical incompatibility before writing any code: the plan's proposed `{ success, message }` response shape would have silently broken every error message across the entire frontend, since every Redux thunk (`authSlice.js`, `chatSlice.js`, `documentSlice.js`) reads `err.response.data.error` — a different key entirely. Kept the existing `error` key throughout instead of adopting the plan's format
+- Added `AppError.js`, `asyncHandler.js`, and `errorMiddleware.js` — centralized error handling including automatic `CastError` → 400 and duplicate-key (11000) → 409 handling
+- Added a 404 handler and wired both into `server.js`, after all real routes
+- Added zod validators for chat (`content`/`documentId` — no `conversationId` field, since the real route takes it from the URL param, not the body, unlike the plan's example) and auth (register/login)
+- Migrated `authController.js` and `chatController.js` fully to `asyncHandler` + `AppError` + validators. Kept `addMessage`'s AI-failure branch as a manual response rather than `throw new AppError(...)`, since it needs to return the successfully-saved `userMessage` alongside the error — a case where centralized error handling and a manual response coexist in the same handler
+- Confirmed a real, measurable improvement from the migration: `GET /chats/:id` with a malformed ID now correctly returns `400 "Invalid ID format"` via centralized `CastError` handling, instead of the generic `500` it returned before today
+- Tested all six of the plan's failure scenarios end-to-end: empty content (400), missing JWT (401, already working), invalid ID format (400, the real new behavior), valid-but-nonexistent ID (404), another user's chat with a second real test account (404, confirms cross-user isolation), and a genuine AI provider failure via a temporarily invalid API key (502, with `userMessage` confirmed present)
+- **Not done today:** `documentController.js` wasn't migrated — deliberately scoped out to keep today's change set testable; same migration pattern applies whenever that's tackled
+
+### Day 43
+- Added `docs/testing-checklist.md`, consolidating what has actually been verified against the running app across Days 30–42, rather than treating today as a first testing pass
+- Closed the one genuine open gap: rate limiting was implemented on Day 35 but never confirmed end-to-end due to testing friction at the time. Re-ran the load test today — clean 200s (with expected scattered 502s from the real LLM provider under rapid load, consistent with Day 35's original finding) through request 20, then 429 on requests 21 and 22, confirmed
+- Found two small open items while compiling the checklist, left unfixed today: the rate limiter's response body uses `message`, not the `error` key the rest of the API standardized on during Day 42; and the Socket.IO `failed` status event path has never actually been exercised with a real failing document
+
+### Day 44 — Dockerize the full stack
+- Containerized the whole app with Docker Compose: `backend`, `worker`, `frontend`, `redis` and `qdrant`. The backend and worker share one image and differ only in the start command (`npm run worker`). MongoDB stays on Atlas.
+- Used `node:22-slim` instead of alpine for the backend image: the local embedding library (onnxruntime) needs glibc, and alpine caused an `ld-linux` error.
+- Fixed a Linux-only bug: file names are case-sensitive inside Docker, so the `User` model import had to match the file name exactly (Windows had hidden this).
+- Inside Docker, services reach each other by service name (`redis://redis:6379`, `http://qdrant:6333`), not `localhost`. Secrets live in `backend/.env.docker`, which is ignored by Git.
+- Added three named volumes: `qdrant_data` (vectors survive restarts), `uploads_data` (PDFs shared between backend and worker), and `hf_cache` (the ~90MB embedding model, shared by backend and worker so it downloads once).
+- Found and fixed a real bug during testing: the first chat question failed with `PROVIDER_ERROR terminated`. The backend container had no cached embedding model, so it tried to download it mid-request and the connection was cut. Persisting the model in `hf_cache` removed the problem.
+- Found a second, separate bug in the same log: a stale MongoDB Atlas socket (`EPIPE`) crashed the AI-failure branch of `addMessage`, because `chat.save()` ran inside the `catch` block. Added `maxIdleTimeMS`, `serverSelectionTimeoutMS` and `heartbeatFrequencyMS` to `mongoose.connect`, and wrapped that `chat.save()` in its own try/catch so a failed side-write can no longer hide the real AI error.
+- Added a `[retrieveDocuments] N candidates -> M passed threshold` log line for retrieval debugging.
+- Verified end-to-end inside Docker: upload → BullMQ worker → Qdrant ingestion → Redis Pub/Sub status event → document routing in the supervisor → Redis cache miss, then cache hit with an identical key for the same question.
+- **Not done today:** the code is copied into the image (not mounted), so code changes need `docker compose up -d --build`. The `failed` Socket.IO status event and the rate limiter's `message` vs `error` response key are still open from Day 43.
+
+### Day 45 — Final polish and UI/UX
+- Built a small design system with CSS variables (colors, spacing, type scale) and automatic dark mode, using plain CSS instead of adding Tailwind on the last day
+- Rebuilt the chat page into components: sidebar, message bubbles with Markdown and a copy button, an auto-growing input, empty and error states, and a selected-document chip
+- Redesigned the Documents page: drag-and-drop upload with client-side validation, status badges, and a "Chat with this document" bar
+- Stored which agent answered each message (`agent` on the message) and show it as a label; the waiting indicator shows estimated phases because the backend returns a single response
+- Made the layout responsive: the sidebar becomes a drawer below 768px
+- Restyled the login, register and dashboard pages
+- Found and fixed during testing: a stale Redis connection left the worker idle (jobs waited in the queue until the worker was restarted); Groq rate-limit (429) and empty-response errors, fixed by capping output tokens and sending only the last 10 messages
+- Cleanup: agent debug logs (which print user questions) are now behind `DEBUG_LOGS`; audited the repository and its history for secrets (clean); fixed `.env.example`
+- Restructured the README; the daily log moved here
+
+## Day 44-45: Docker and UI
+- [x] Full stack in Docker: upload, ingestion, live status, document chat, cache miss then hit
+- [x] Embedding model persists in the `hf_cache` volume (shared by backend and worker)
+- [x] Responsive layout (desktop, tablet, mobile drawer) checked in browser device mode
+- [x] Failed PDF (no readable text) shows a failed card and a clear worker error
+- [ ] `failed` card updating live without a refresh (tick this when you have seen it)

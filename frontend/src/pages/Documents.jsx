@@ -1,13 +1,22 @@
+import { Link } from "react-router-dom";
 import DocumentUpload from "../components/DocumentUpload";
 import DocumentList from "../components/DocumentList";
-import { Link } from "react-router-dom";
+import "../styles/documents.css";
 
 const Documents = () => {
   return (
-    <div>
+    <div className="page">
+      <header className="page-header">
+        <div>
+          <h1>Documents</h1>
+          <p className="muted">Your knowledge base. Upload a PDF, then use it in chat.</p>
+        </div>
+        <Link to="/chat" className="btn">← Back to chat</Link>
+      </header>
+
       <DocumentUpload />
-      <Link to="/chat">Go to Chat →</Link>
-      <hr />
+
+      <h2 className="section-title">Your documents</h2>
       <DocumentList />
     </div>
   );

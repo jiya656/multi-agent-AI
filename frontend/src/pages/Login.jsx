@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import { loginUser, clearError } from "../redux/authSlice";
+import "../styles/auth.css";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -30,38 +31,44 @@ export default function Login() {
   }
 
   return (
-    <div style={{ maxWidth: 360, margin: "80px auto", fontFamily: "sans-serif" }}>
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }}
-          />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }}
-          />
-        </div>
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-brand">✦ MultiAI</div>
+        <h1>Welcome back</h1>
+        <p className="muted">Sign in to your AI workspace</p>
 
-        {formError && <p style={{ color: "crimson" }}>{formError}</p>}
-        {error && <p style={{ color: "crimson" }}>{error}</p>}
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <label className="field">
+            <span>Email</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+            />
+          </label>
+          <label className="field">
+            <span>Password</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+          </label>
 
-        <button type="submit" disabled={loading} style={{ padding: "8px 16px", width: "100%" }}>
-          {loading ? "Logging in…" : "Login"}
-        </button>
-      </form>
-      <p style={{ marginTop: 12 }}>
-        Don't have an account? <Link to="/register">Register</Link>
-      </p>
+          {(formError || error) && <p className="auth-error">{formError || error}</p>}
+
+          <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
+
+        <p className="muted auth-switch">
+          Don't have an account? <Link to="/register">Create one</Link>
+        </p>
+      </div>
     </div>
   );
 }

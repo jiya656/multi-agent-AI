@@ -1,0 +1,27 @@
+.auth-page {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: var(--space-6) var(--space-4);
+}
+.auth-card {
+  width: 100%; max-width: 400px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 14px; padding: var(--space-8);
+  display: flex; flex-direction: column; gap: var(--space-2); text-align: center;
+}
+.auth-brand { font-weight: 600; color: var(--primary); font-size: var(--text-heading); margin-bottom: var(--space-2); }
+.auth-form { display: flex; flex-direction: column; gap: var(--space-4); margin-top: var(--space-4); text-align: left; }
+.field { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-small); font-weight: 500; }
+.field input { font-weight: 400; font-size: var(--text-body); }
+.auth-submit { width: 100%; padding: var(--space-3); font-size: var(--text-body); }
+.auth-error { color: var(--error); font-size: var(--text-small); margin: 0; }
+.auth-success { color: var(--success); font-size: var(--text-small); margin: 0; }
+.auth-switch { margin-top: var(--space-4); }
+.auth-switch a { color: var(--primary); }
+
+.dashboard-card { max-width: 480px; }
+.dash-actions { display: grid; gap: var(--space-3); margin: var(--space-4) 0; text-align: left; }
+.dash-tile {
+  display: flex; flex-direction: column; gap: 2px; padding: var(--space-4);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  text-decoration: none; color: var(--text); transition: border-color 0.15s;
+}
+.dash-tile:hover { border-color: var(--primary); }

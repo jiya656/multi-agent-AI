@@ -28,6 +28,10 @@ const messageSchema = new mongoose.Schema(
       ],
       default: [],
     },
+      agent: {
+        type: String,
+        default: null,
+      },
   },
   {
     timestamps: true,

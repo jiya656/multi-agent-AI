@@ -1,15 +1,16 @@
+const { debug } = require("../../../utils/logger");
 const { decideRoute } = require("../../agents/supervisorAgent");
 const { getChatModel } = require("../../models/chatModel");
 const { chatPrompt } = require("../../prompts/chatPrompt");
 
 async function supervisorNode(state) {
   if (state.documentId) {
-    console.log("[supervisorNode] document selected:", state.documentId, "-> next: document");
+    debug("[supervisorNode] document selected:", state.documentId, "-> next: document");
     return { next: "document" };
   }
 
   const next = await decideRoute(state.message, state.historyMessages || []);
-  console.log("[supervisorNode]", JSON.stringify(state.message), "-> next:", next);
+  debug("[supervisorNode]", JSON.stringify(state.message), "-> next:", next);
 
   if (next === "end") {
     const messages = await chatPrompt.formatMessages({

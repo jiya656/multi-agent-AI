@@ -71,12 +71,13 @@ const addMessage = asyncHandler(async (req, res) => {
 
   let assistantMessage;
   try {
-    const { text, sources } = await getAIResponse(history, documentId);
+    const { text, sources, agent } = await getAIResponse(history, documentId);
     assistantMessage = await Message.create({
       conversation: chat._id,
       role: "assistant",
       content: text,
       sources: sources || [],
+      agent: agent || null,
     });
   } catch (aiErr) {
     console.error("AI service error:", aiErr.type || "UNKNOWN", aiErr.message);
