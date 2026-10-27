@@ -46,7 +46,10 @@ const retrieveDocuments = async (question, documentId, limit = 5, scoreThreshold
 
   debug(`[retrieveDocuments] ${formatted.length} candidates -> ${filteredResults.length} passed threshold ${scoreThreshold}`);
 
-  await redisClient.set(cacheKey, JSON.stringify(filteredResults), { EX: 300 });
+  // Don't cache empty results: otherwise a miss is repeated for 5 minutes
+  if (filteredResults.length > 0) {
+    await redisClient.set(cacheKey, JSON.stringify(filteredResults), { EX: 300 });
+  }
 
   return filteredResults;
 };
