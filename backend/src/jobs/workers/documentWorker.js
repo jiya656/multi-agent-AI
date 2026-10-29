@@ -1,7 +1,6 @@
 // documentWorker.js
-// Day 36: runs Day 21's ingestDocument() outside the request/response
-// cycle. Status transitions mirror documentService.js's existing
-// try/catch exactly, so behavior on failure is unchanged — just moved.
+// Runs ingestDocument() outside the request/response cycle and tells the
+// document's owner (via Redis pub/sub -> Socket.IO) when its status changes.
 
 const { Worker } = require("bullmq");
 const Document = require("../../models/Document");
@@ -9,11 +8,13 @@ const ingestDocument = require("../../ai/rag/ingestDocument");
 const { publisher } = require("../../config/redisPubSub");
 
 // Best-effort: if publishing fails, the document itself was still
-// ingested/updated correctly — a failed publish must never get treated
-// as a failed ingestion.
-const publishStatus = async (documentId, status) => {
+// ingested/updated correctly, so a failed publish is never a failed ingestion.
+const publishStatus = async (documentId, status, userId) => {
   try {
-    await publisher.publish("document-status", JSON.stringify({ documentId, status }));
+    await publisher.publish(
+      "document-status",
+      JSON.stringify({ documentId, status, userId: userId ? String(userId) : null })
+    );
   } catch (err) {
     console.error("[documentWorker] failed to publish status:", err.message);
   }
@@ -28,19 +29,17 @@ const documentWorker = new Worker(
     try {
       await ingestDocument(filePath, documentId);
 
-      await Document.findByIdAndUpdate(documentId, {
-        status: "completed"
-      });
-      await publishStatus(documentId, "completed");
+      // findByIdAndUpdate returns the document, which tells us who owns it
+      const doc = await Document.findByIdAndUpdate(documentId, { status: "completed" });
+      await publishStatus(documentId, "completed", doc?.userId);
 
       console.log("[documentWorker] completed:", documentId);
     } catch (error) {
-      await Document.findByIdAndUpdate(documentId, {
+      const doc = await Document.findByIdAndUpdate(documentId, {
         status: "failed",
         errorMessage: error.message
       });
-
-      await publishStatus(documentId, "failed");
+      await publishStatus(documentId, "failed", doc?.userId);
 
       throw error;
     }
