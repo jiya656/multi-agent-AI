@@ -23,8 +23,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
+// The one browser origin allowed to call the API / open sockets.
+// In production (everything behind one domain) this is that domain.
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+
 const io = new Server(server, {
-  cors: { origin: "http://localhost:5173" }
+  cors: { origin: CLIENT_URL }
 });
 
 io.on("connection", (socket) => {
@@ -32,9 +36,8 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => console.log("Client disconnected:", socket.id));
 });
 
-// Lets our React app (running on a different port, localhost:5173)
-// make requests to this server. Without this, the browser blocks it.
-app.use(cors());
+// Lets our React app (CLIENT_URL) call this server from the browser.
+app.use(cors({ origin: CLIENT_URL }));
 app.use(express.json());
 
 // A simple route to confirm the server is alive if you open it directly
@@ -85,6 +88,6 @@ Promise.all([connectDB(), connectRedis(), connectSubscriber()]).then(async () =>
   });
 
   server.listen(PORT, () => {
-    console.log(`✅ Server running on http://localhost:${PORT}`);
+      console.log(`✅ Server running on port ${PORT}`);
   });
 });
