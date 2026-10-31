@@ -31,7 +31,14 @@ const ingestDocument = async (filePath, documentId) => {
 
   // 3. Create embeddings
   const texts = chunks.map((chunk) => chunk.pageContent);
-  const vectors = await embeddings.embedDocuments(texts);
+    // Embed in small batches so a large PDF can't exhaust memory
+  const BATCH_SIZE = 16;
+  const vectors = [];
+  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+    const batchVectors = await embeddings.embedDocuments(texts.slice(i, i + BATCH_SIZE));
+    vectors.push(...batchVectors);
+    console.log(`Embedded ${Math.min(i + BATCH_SIZE, texts.length)}/${texts.length} chunks`);
+  }
 
   // 4. Prepare Qdrant points
   const points = chunks.map((chunk, index) => ({
