@@ -18,23 +18,43 @@ const http = require("http");
 const { Server } = require("socket.io");
 const { subscriber, connectSubscriber } = require("./config/redisPubSub");
 const errorMiddleware = require("./middleware/errorMiddleware");
+const jwt = require("jsonwebtoken");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
+// The one browser origin allowed to call the API / open sockets.
+// In production (everything behind one domain) this is that domain.
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+
 const io = new Server(server, {
-  cors: { origin: "http://localhost:5173" }
+  cors: { origin: CLIENT_URL }
+});
+
+// Every socket must present a valid JWT (same secret as the REST API).
+// A socket that can't prove who it is never connects.
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth && socket.handshake.auth.token;
+    if (!token) return next(new Error("Not authorized"));
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.id;
+    next();
+  } catch (err) {
+    next(new Error("Not authorized"));
+  }
 });
 
 io.on("connection", (socket) => {
+  // Each user listens only in their own room.
+  socket.join(`user:${socket.userId}`);
   console.log("Client connected:", socket.id);
   socket.on("disconnect", () => console.log("Client disconnected:", socket.id));
 });
 
-// Lets our React app (running on a different port, localhost:5173)
-// make requests to this server. Without this, the browser blocks it.
-app.use(cors());
+// Lets our React app (CLIENT_URL) call this server from the browser.
+app.use(cors({ origin: CLIENT_URL }));
 app.use(express.json());
 
 // A simple route to confirm the server is alive if you open it directly
@@ -78,13 +98,16 @@ app.use((req, res) => {
 app.use(errorMiddleware);
 
 Promise.all([connectDB(), connectRedis(), connectSubscriber()]).then(async () => {
-  await subscriber.subscribe("document-status", (message) => {
-    const data = JSON.parse(message);
-    console.log("[pubsub] document status:", data);
-    io.emit("document:status", data);
+    await subscriber.subscribe("document-status", (message) => {
+    const { documentId, status, userId } = JSON.parse(message);
+    console.log("[pubsub] document status:", { documentId, status });
+
+    // An event with no owner is dropped, never broadcast.
+    if (!userId) return;
+    io.to(`user:${userId}`).emit("document:status", { documentId, status });
   });
 
   server.listen(PORT, () => {
-    console.log(`✅ Server running on http://localhost:${PORT}`);
+      console.log(`✅ Server running on port ${PORT}`);
   });
 });

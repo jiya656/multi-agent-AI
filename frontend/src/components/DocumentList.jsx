@@ -33,10 +33,12 @@ const DocumentList = () => {
 
     socket.on("document:status", handleStatus);
     socket.on("connect", handleConnect);
+    socket.connect(); // no-op if already connected
 
     return () => {
       socket.off("document:status", handleStatus);
       socket.off("connect", handleConnect);
+      socket.disconnect(); // leaving the page (or logging out) ends the session
     };
   }, [dispatch]);
 
