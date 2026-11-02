@@ -352,3 +352,13 @@ See the [main README](../README.md) for the project overview.
 - [x] Responsive layout (desktop, tablet, mobile drawer) checked in browser device mode
 - [x] Failed PDF (no readable text) shows a failed card and a clear worker error
 - [ ] `failed` card updating live without a refresh (tick this when you have seen it)
+
+### Day 46 — Production preparation
+- Rotated the Groq key, the MongoDB password and the JWT secret after they appeared in terminal output; checked that none had ever been committed
+- Replaced hard-coded URLs: the frontend reads `VITE_API_URL` / `VITE_SOCKET_URL` (development) and uses the same origin in production builds; the backend reads `CLIENT_URL` for CORS and Socket.IO
+- Production images: backend installs without dev dependencies and starts with `node`; frontend is a multi-stage build served by nginx (`Dockerfile.prod`), while the development Dockerfile is unchanged
+- Added `docker-compose.prod.yml` and a `Caddyfile`: Caddy is the only service with published ports and forwards `/api` and `/socket.io` to the backend; Redis and Qdrant stay on the private network; services restart automatically and logs are rotated
+- Secured Socket.IO: sockets must present the user's JWT, each user joins a private room, and the worker publishes the document owner with every status event, so events reach only the owner (tested with two accounts)
+- Fixes found while testing: overview requests such as "summarize this PDF" never reached the similarity threshold, so they now use the closest chunks; empty retrieval results are no longer cached; chunks are embedded in batches of 16 to cap memory
+- Measured memory in a production-like run: about 1.25 GiB in total after a 15-page PDF (the worker, which loads the embedding model, is the largest at roughly 0.8 GiB), so a 4 GB server is comfortable
+- Lessons: a worker's Redis connection can go stale after idle time (restart it); a successful build doesn't prove the new code is running, so I checked inside the container

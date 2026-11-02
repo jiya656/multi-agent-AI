@@ -55,3 +55,13 @@ links back to when it was genuinely verified.
 ## Known open items from this review
 1. Rate limiter's response format doesn't match the rest of the API (`message` vs `error`) — small fix, not done today
 2. `failed` Socket.IO event path has never been exercised with a real failure — would need a deliberately broken PDF or forced ingestion error to verify
+
+## Day 46: Production preparation
+- [x] Production images build (backend `--omit=dev`, frontend multi-stage with nginx)
+- [x] Production stack (Caddy + API + worker + frontend + Redis + Qdrant) runs on a laptop
+- [x] Only Caddy publishes ports; Redis (6379), Qdrant (6333) and the API (5000) are unreachable from outside
+- [x] Login, chat, PDF upload and document answers work through Caddy
+- [x] WebSocket connections without a valid JWT are rejected
+- [x] Document status events reach only the owner (two-user isolation test)
+- [x] Embedding runs in batches of 16 chunks
+- [ ] Deployment on a real server with HTTPS (pending)
