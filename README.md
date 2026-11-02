@@ -3,7 +3,7 @@
 A multi-agent AI workspace that combines specialized AI agents, document-aware
 RAG, conversation memory and real-time document processing.
 
-![Chat workspace](docs/screenshots/chat.png)
+![Demo](docs/demo.gif)
 
 ## Features
 
