@@ -17,6 +17,7 @@ RAG, conversation memory and real-time document processing.
 - **Security:** JWT (7-day tokens), bcrypt password hashing, Zod request validation, per-user data isolation
 - **Responsive UI** with automatic dark mode
 - **Docker Compose:** the whole stack starts with one command
+- **Private live updates:** WebSocket connections require the user's JWT, and each user receives only their own document events
 
 ## Screenshots
 
@@ -124,6 +125,7 @@ npm run dev                                # UI on :5173
 | `REDIS_URL` | Redis connection URL |
 | `QDRANT_URL` | Qdrant URL |
 | `DEBUG_LOGS` | `true` prints agent pipeline logs (they include user questions); keep `false` in production |
+| `CLIENT_URL` | Public address of the site (CORS and Socket.IO origin). Default `http://localhost:5173` |
 
 Real `.env` files are never committed.
 
@@ -168,7 +170,7 @@ The day-by-day build history is in [`docs/development-log.md`](docs/development-
 ## Known limitations
 
 - The free Groq tier limits tokens per minute, so heavy use returns a 429 error. Output length is capped and only the last 10 messages are sent to reduce this.
-- Socket.IO status events are broadcast to every connected client (they contain only a document id and status). Per-user rooms with authenticated sockets are planned.
+- Summaries of long documents use only the closest chunks, not the whole document.
 - The "Analyzing / Searching / Preparing" steps in the chat are estimated phases, because the API returns one response per message.
 - Documents cannot be deleted or retried from the UI, and a failed upload stays in the list.
 - If Redis is unreachable at upload time, a document can stay on *Processing*.
@@ -184,3 +186,18 @@ The day-by-day build history is in [`docs/development-log.md`](docs/development-
 - Return-to-supervisor loop for multi-step requests (for example, "read my PDF, then research X")
 - Automated tests and CI
 - Deployment (cloud hosting for the API, worker and vector database)
+- Real agent progress events (the socket layer is already authenticated)
+
+## Production deployment
+
+The repository includes a production setup. `docker-compose.prod.yml` runs the API, the worker, the frontend (a static build served by nginx), Redis, Qdrant and **Caddy**. Caddy is the only service with published ports: it provides HTTPS and forwards `/api` and `/socket.io` to the backend. Redis and Qdrant have no published ports.
+
+1. Create `backend/.env.production` (never commit it) with `MONGODB_URI`, `JWT_SECRET`, `LLM_API_KEY`, `LLM_MODEL` and `CLIENT_URL` set to your public address.
+2. On a server, set `SITE_ADDRESS` to your domain so Caddy can get a certificate:
+   ```bash
+   SITE_ADDRESS=example.com docker compose -f docker-compose.prod.yml up -d --build
+   docker compose -f docker-compose.prod.yml exec backend node src/ai/vector/createDocumentCollection.js
+   ```
+3. To try it locally instead: `HTTP_PORT=8080 docker compose -f docker-compose.prod.yml up -d --build`, then open http://localhost:8080.
+
+Measured memory with the stack running after a 15-page PDF: about 1.25 GiB in total. The worker, which loads the embedding model, is the largest at roughly 0.8 GiB, so plan for a server with at least 4 GB of RAM.
